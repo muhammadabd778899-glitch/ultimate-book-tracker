@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -8,12 +7,13 @@ import { useToast } from '@/components/ui/toast';
 import { readFileAsText, parseBackup, validateBackup, downloadBackup, createBackup, extractCovers } from '@/utils/export';
 import { Palette, FileText, Download, Upload, ShieldCheck, Info, AlertTriangle, Trash2 } from 'lucide-react';
 import { exportToCSV, importFromCSV } from '@/utils/csv';
+import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
 
 export default function Settings() {
   const { toast } = useToast();
 
-  const preferences = useLiveQuery(() => db.preferences.toArray(), []) ?? [];
-  const books = useLiveQuery(() => db.books.toArray(), []) ?? [];
+  const preferences = useSafeLiveQuery(() => db.preferences.toArray(), []) ?? [];
+  const books = useSafeLiveQuery(() => db.books.toArray(), []) ?? [];
 
   const [theme, setTheme] = useState('dark');
   const [accentColor, setAccentColor] = useState('#E65A45');

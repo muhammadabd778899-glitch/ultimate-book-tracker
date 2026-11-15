@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -7,12 +6,13 @@ import { Card } from '@/components/ui/card';
 import { CoverImage } from '@/components/ui/cover-image';
 import { Book, ChevronLeft, Plus, ArrowRight, Trash2 } from 'lucide-react';
 import { statusLabel } from '@/utils/date';
+import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
 
 export default function ShelfDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const shelf = useLiveQuery(() => db.shelves.get(id ?? ''), [id ?? '']) as any;
-  const books = useLiveQuery(() => db.books.toArray(), []) ?? [];
+  const shelf = useSafeLiveQuery(() => db.shelves.get(id ?? ''), [id ?? '']) as any;
+  const books = useSafeLiveQuery(() => db.books.toArray(), []) ?? [];
 
   if (!shelf) return <div className="container py-20 text-center">Loading shelf…</div>;
 

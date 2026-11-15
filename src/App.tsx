@@ -20,6 +20,7 @@ import Onboarding from '@/features/onboarding/Onboarding';
 import Navbar from '@/components/layout/Navbar';
 import { db } from '@/db';
 import { seedDemoData } from '@/seed';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { useEffect, useState } from 'react';
 
 const isDev = (import.meta as { env?: { DEV?: boolean } }).env?.DEV === true;
@@ -27,6 +28,7 @@ const basename = isDev ? '/' : '/ultimate-book-tracker/';
 
 export default function App() {
   const [initialized, setInitialized] = useState(false);
+  const [dbError, setDbError] = useState<Error | null>(null);
   const location = useLocation();
 
   useEffect(() => {
@@ -41,7 +43,10 @@ export default function App() {
         if (mounted) setInitialized(true);
       } catch (err) {
         console.error('Failed to initialize database', err);
-        if (mounted) setInitialized(true);
+        if (mounted) {
+          setDbError(err as Error);
+          setInitialized(true); // Still render so ErrorBoundary can show a fallback
+        }
       }
     })();
     return () => {
@@ -53,33 +58,36 @@ export default function App() {
     return null;
   }
 
-  // Redirect to onboarding if no user choice recorded (simple: if library empty and demo not seeded, we seeded demo anyway)
   return (
     <BrowserRouter basename={basename}>
-      <Navbar />
-      <main className="flex-1 relative">
-        <Routes location={location}>
-          <Route path="/" element={<Home />} />
-          <Route path="/library" element={<Library />} />
-          <Route path="/books/add" element={<AddEditBook />} />
-          <Route path="/books/:id" element={<BookDetail />} />
-          <Route path="/books/:id/edit" element={<AddEditBook />} />
-          <Route path="/reading" element={<ReadingTracker />} />
-          <Route path="/timer" element={<ReadingTimer />} />
-          <Route path="/tbr" element={<TBR />} />
-          <Route path="/wishlist" element={<Wishlist />} />
-          <Route path="/series" element={<Series />} />
-          <Route path="/shelves" element={<Shelves />} />
-          <Route path="/shelves/:id" element={<ShelfDetail />} />
-          <Route path="/journal" element={<Journal />} />
-          <Route path="/goals" element={<Goals />} />
-          <Route path="/calendar" element={<Calendar />} />
-          <Route path="/statistics" element={<Statistics />} />
-          <Route path="/year-in-books" element={<YearInBooks />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/onboarding" element={<Onboarding />} />
-        </Routes>
-      </main>
+      <ErrorBoundary onError={(error, info) => {
+        console.error('[App] Render error caught:', error, info);
+      }}>
+        <Navbar />
+        <main className="flex-1 relative">
+          <Routes location={location}>
+            <Route path="/" element={<Home />} />
+            <Route path="/library" element={<Library />} />
+            <Route path="/books/add" element={<AddEditBook />} />
+            <Route path="/books/:id" element={<BookDetail />} />
+            <Route path="/books/:id/edit" element={<AddEditBook />} />
+            <Route path="/reading" element={<ReadingTracker />} />
+            <Route path="/timer" element={<ReadingTimer />} />
+            <Route path="/tbr" element={<TBR />} />
+            <Route path="/wishlist" element={<Wishlist />} />
+            <Route path="/series" element={<Series />} />
+            <Route path="/shelves" element={<Shelves />} />
+            <Route path="/shelves/:id" element={<ShelfDetail />} />
+            <Route path="/journal" element={<Journal />} />
+            <Route path="/goals" element={<Goals />} />
+            <Route path="/calendar" element={<Calendar />} />
+            <Route path="/statistics" element={<Statistics />} />
+            <Route path="/year-in-books" element={<YearInBooks />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/onboarding" element={<Onboarding />} />
+          </Routes>
+        </main>
+      </ErrorBoundary>
     </BrowserRouter>
   );
 }

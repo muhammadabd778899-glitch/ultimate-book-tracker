@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '@/db';
 import { CoverImage } from '@/components/ui/cover-image';
@@ -11,6 +10,7 @@ import { ProgressBar } from '@/components/ui/progress-bar';
 import { ConfirmDialog } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/toast';
 import { statusLabel, statusColor, computePercentage, formatDate } from '@/utils/date';
+import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
 import {
   Edit2,
   Trash2,
@@ -29,11 +29,11 @@ export default function BookDetail() {
   const navigate = useNavigate();
   const t = useToast();
 
-  const book = useLiveQuery(() => db.books.get(id ?? ''), [id ?? '']) as any;
-  const reviews = useLiveQuery(() => db.reviews.where('bookId').equals(id ?? '').toArray(), [id ?? '']) ?? [];
-  const quotes = useLiveQuery(() => db.quotes.where('bookId').equals(id ?? '').toArray(), [id ?? '']) ?? [];
-  const sessions = useLiveQuery(() => db.readingSessions.where('bookId').equals(id ?? '').sortBy('date'), [id ?? '']) ?? [];
-  const authors = useLiveQuery(() => db.authors.toArray(), []) ?? [];
+  const book = useSafeLiveQuery(() => db.books.get(id ?? ''), [id ?? '']) as any;
+  const reviews = useSafeLiveQuery(() => db.reviews.where('bookId').equals(id ?? '').toArray(), [id ?? '']) ?? [];
+  const quotes = useSafeLiveQuery(() => db.quotes.where('bookId').equals(id ?? '').toArray(), [id ?? '']) ?? [];
+  const sessions = useSafeLiveQuery(() => db.readingSessions.where('bookId').equals(id ?? '').sortBy('date'), [id ?? '']) ?? [];
+  const authors = useSafeLiveQuery(() => db.authors.toArray(), []) ?? [];
 
   const [tab, setTab] = useState<'overview' | 'progress' | 'journal' | 'quotes' | 'notes' | 'reviews' | 'history'>('overview');
   const [deleteOpen, setDeleteOpen] = useState(false);

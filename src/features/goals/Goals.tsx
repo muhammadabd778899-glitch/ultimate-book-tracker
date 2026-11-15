@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { db, newId, nowISO } from '@/db';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -8,15 +7,16 @@ import { useToast } from '@/components/ui/toast';
 import { computeLibraryStats, booksFinishedInRange, pagesReadInRange, readingHoursInRange, getYearRange, todayISO } from '@/utils/date';
 import { Book, Target, Flag, Trophy, ArrowUpRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
 
 export default function Goals() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const books = useLiveQuery(() => db.books.toArray(), []) ?? [];
-  const goals = useLiveQuery(() => db.goals.toArray(), []) ?? [];
-  const sessions = useLiveQuery(() => db.readingSessions.toArray(), []) ?? [];
-  const challenges = useLiveQuery(() => db.challenges.toArray(), []) ?? [];
+  const books = useSafeLiveQuery(() => db.books.toArray(), []) ?? [];
+  const goals = useSafeLiveQuery(() => db.goals.toArray(), []) ?? [];
+  const sessions = useSafeLiveQuery(() => db.readingSessions.toArray(), []) ?? [];
+  const challenges = useSafeLiveQuery(() => db.challenges.toArray(), []) ?? [];
 
   const [form, setForm] = useState({ name: 'Annual Goal', target: '12', period: 'year' as const, startDate: '', endDate: '' });
   const [open, setOpen] = useState(false);

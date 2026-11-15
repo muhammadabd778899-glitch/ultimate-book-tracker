@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { db, newId, nowISO } from '@/db';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -8,6 +7,7 @@ import { useToast } from '@/components/ui/toast';
 import { statusLabel, statusColor, formatDate } from '@/utils/date';
 import { Play, Book, Clock, Flag, RefreshCw } from 'lucide-react';
 import { computePercentage } from '@/utils/date';
+import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
 
 const STATUSES = [
   { id: 'want-to-read', label: 'Want to Read', icon: 'clock' },
@@ -21,8 +21,8 @@ export default function ReadingTracker() {
   const { toast } = useToast();
   const [view, setView] = useState<'active' | 'all'>('active');
 
-  const books = useLiveQuery(() => db.books.toArray(), []) ?? [];
-  const sessions = useLiveQuery(() => db.readingSessions.toArray(), []) ?? [];
+  const books = useSafeLiveQuery(() => db.books.toArray(), []) ?? [];
+  const sessions = useSafeLiveQuery(() => db.readingSessions.toArray(), []) ?? [];
 
   const activeBooks = books.filter((b) => b.readingStatus === 'currently-reading');
   const filteredBooks = view === 'active' ? activeBooks : books;

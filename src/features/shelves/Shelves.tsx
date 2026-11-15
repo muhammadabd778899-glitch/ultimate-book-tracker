@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { db, newId, nowISO } from '@/db';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -9,13 +8,14 @@ import { useToast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
 import { Book, Plus, LayoutGrid, LayoutList, Trash2, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
 
 export default function Shelves() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const shelves = useLiveQuery(() => db.shelves.toArray(), []) ?? [];
-  const books = useLiveQuery(() => db.books.toArray(), []) ?? [];
+  const shelves = useSafeLiveQuery(() => db.shelves.toArray(), []) ?? [];
+  const books = useSafeLiveQuery(() => db.books.toArray(), []) ?? [];
 
   const [form, setForm] = useState({ name: '', description: '', color: '#E65A45', icon: 'Book', coverStyle: 'cover' as const });
   const [open, setOpen] = useState(false);

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { db, newId, nowISO } from '@/db';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -9,14 +8,15 @@ import { useToast } from '@/components/ui/toast';
 import { CoverImage } from '@/components/ui/cover-image';
 import { FileText, Quote, Star, Heart, Calendar, ShieldAlert } from 'lucide-react';
 import { formatDate } from '@/utils/date';
+import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
 
 export default function Journal() {
   const { toast } = useToast();
 
-  const reviews = useLiveQuery(() => db.reviews.toArray(), []) ?? [];
-  const quotes = useLiveQuery(() => db.quotes.toArray(), []) ?? [];
-  const books = useLiveQuery(() => db.books.toArray(), []) ?? [];
-  const notes = useLiveQuery(() => db.notes.toArray(), []) ?? [];
+  const reviews = useSafeLiveQuery(() => db.reviews.toArray(), []) ?? [];
+  const quotes = useSafeLiveQuery(() => db.quotes.toArray(), []) ?? [];
+  const books = useSafeLiveQuery(() => db.books.toArray(), []) ?? [];
+  const notes = useSafeLiveQuery(() => db.notes.toArray(), []) ?? [];
 
   const [entry, setEntry] = useState({ title: '', content: '', mood: '', rating: '' });
   const [open, setOpen] = useState(false);

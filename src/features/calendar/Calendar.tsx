@@ -1,17 +1,17 @@
 import { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { Calendar as CalendarIcon, Book, Clock, History } from 'lucide-react';
 import { todayISO, formatDate, getMonthRange, isSameDay } from '@/utils/date';
+import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
 
 export default function Calendar() {
   const { toast } = useToast();
 
-  const sessions = useLiveQuery(() => db.readingSessions.toArray(), []) ?? [];
-  const books = useLiveQuery(() => db.books.toArray(), []) ?? [];
+  const sessions = useSafeLiveQuery(() => db.readingSessions.toArray(), []) ?? [];
+  const books = useSafeLiveQuery(() => db.books.toArray(), []) ?? [];
   const [date, setDate] = useState(todayISO());
 
   const [year, month] = date.split('-').map(Number);

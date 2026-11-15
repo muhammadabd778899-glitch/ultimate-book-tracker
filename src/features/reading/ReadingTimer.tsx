@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { db, newId, nowISO } from '@/db';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -8,12 +7,13 @@ import { useToast } from '@/components/ui/toast';
 import { computePercentage, todayISO } from '@/utils/date';
 import { Play, Pause, RefreshCw, Timer, Plus, Trash2 } from 'lucide-react';
 import { CoverImage } from '@/components/ui/cover-image';
+import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
 
 export default function ReadingTimer() {
   const { toast } = useToast();
 
-  const books = useLiveQuery(() => db.books.toArray(), []) ?? [];
-  const sessions = useLiveQuery(() => db.readingSessions.toArray(), []) ?? [];
+  const books = useSafeLiveQuery(() => db.books.toArray(), []) ?? [];
+  const sessions = useSafeLiveQuery(() => db.readingSessions.toArray(), []) ?? [];
 
   const [activeBookId, setActiveBookId] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);

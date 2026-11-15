@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { db, newId, nowISO } from '@/db';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -10,14 +9,15 @@ import { CoverImage } from '@/components/ui/cover-image';
 import { Book, Play, ArrowRight, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { computePercentage } from '@/utils/date';
+import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
 
 export default function Series() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const series = useLiveQuery(() => db.series.toArray(), []) ?? [];
-  const books = useLiveQuery(() => db.books.toArray(), []) ?? [];
-  const authors = useLiveQuery(() => db.authors.toArray(), []) ?? [];
+  const series = useSafeLiveQuery(() => db.series.toArray(), []) ?? [];
+  const books = useSafeLiveQuery(() => db.books.toArray(), []) ?? [];
+  const authors = useSafeLiveQuery(() => db.authors.toArray(), []) ?? [];
 
   const [form, setForm] = useState({ name: '', author: '', description: '' });
   const [open, setOpen] = useState(false);

@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate } from 'react-router-dom';
 import { db } from '@/db';
 import { CoverImage } from '@/components/ui/cover-image';
@@ -11,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmDialog } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/toast';
 import { statusLabel, statusColor, computeLibraryStats } from '@/utils/date';
+import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
 import {
   Search,
   Filter,
@@ -36,8 +36,8 @@ export default function Library() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const books = useLiveQuery(() => db.books.toArray(), []) ?? [];
-  const authors = useLiveQuery(() => db.authors.toArray(), []) ?? [];
+  const books = useSafeLiveQuery(() => db.books.toArray(), []) ?? [];
+  const authors = useSafeLiveQuery(() => db.authors.toArray(), []) ?? [];
 
   // Filter state
   const [search, setSearch] = useState('');

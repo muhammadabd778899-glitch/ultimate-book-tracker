@@ -1,19 +1,19 @@
 import { useMemo } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db';
 import { Card } from '@/components/ui/card';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, ResponsiveContainer, Tooltip, Legend, Cell } from 'recharts';
 import { useToast } from '@/components/ui/toast';
 import { computeLibraryStats, booksFinishedInRange, pagesReadInRange, readingHoursInRange, getYearRange, formatDate } from '@/utils/date';
 import { Book, BarChart3, PieChart as PieIcon, BookOpen, Clock, Users } from 'lucide-react';
+import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
 
 const COLORS = ['#E65A45', '#0891b2', '#be185d', '#047857', '#92400e', '#7c3aed', '#ea580c', '#c026d3', '#475569', '#0f172a'];
 
 export default function Statistics() {
   const { toast } = useToast();
 
-  const books = useLiveQuery(() => db.books.toArray(), []) ?? [];
-  const sessions = useLiveQuery(() => db.readingSessions.toArray(), []) ?? [];
+  const books = useSafeLiveQuery(() => db.books.toArray(), []) ?? [];
+  const sessions = useSafeLiveQuery(() => db.readingSessions.toArray(), []) ?? [];
 
   const year = new Date().getFullYear();
   const { start, end } = getYearRange(year);

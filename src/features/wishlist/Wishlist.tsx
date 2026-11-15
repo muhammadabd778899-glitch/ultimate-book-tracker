@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { db, newId, nowISO } from '@/db';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -9,6 +8,7 @@ import { useToast } from '@/components/ui/toast';
 import { CoverImage } from '@/components/ui/cover-image';
 import { Book, DollarSign, Star, Trash2, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
 
 const PRIORITIES = ['high', 'medium', 'low'] as const;
 const STATUSES = ['wishlisted', 'purchased', 'cancelled'] as const;
@@ -17,8 +17,8 @@ export default function Wishlist() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const items = useLiveQuery(() => db.wishlist.toArray(), []) ?? [];
-  const books = useLiveQuery(() => db.books.toArray(), []) ?? [];
+  const items = useSafeLiveQuery(() => db.wishlist.toArray(), []) ?? [];
+  const books = useSafeLiveQuery(() => db.books.toArray(), []) ?? [];
 
   const [item, setItem] = useState({
     title: '',

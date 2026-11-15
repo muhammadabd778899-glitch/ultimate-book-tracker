@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { computeLibraryStats, booksFinishedInRange, pagesReadInRange, readingHoursInRange, getYearRange } from '@/utils/date';
 import { CoverImage } from '@/components/ui/cover-image';
+import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
 import { Trophy, Star, Calendar, Award } from 'lucide-react';
 
 export default function YearInBooks() {
-  const books = useLiveQuery(() => db.books.toArray(), []) ?? [];
-  const sessions = useLiveQuery(() => db.readingSessions.toArray(), []) ?? [];
+  const books = useSafeLiveQuery(() => db.books.toArray(), []) ?? [];
+  const sessions = useSafeLiveQuery(() => db.readingSessions.toArray(), []) ?? [];
   const [year, setYear] = useState(new Date().getFullYear());
 
   const { start, end } = getYearRange(year);

@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate, useParams } from 'react-router-dom';
 import { db, newId, nowISO } from '@/db';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,7 @@ import { useToast } from '@/components/ui/toast';
 import { generateFallbackCover } from '@/utils/cover';
 import { imageFileToDataUrl } from '@/utils/cover';
 import { X, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
 
 const GENRES = [
   'Fantasy', 'Science Fiction', 'Mystery', 'Thriller', 'Romance', 'Historical Fiction',
@@ -32,8 +32,8 @@ export default function AddEditBook() {
   const navigate = useNavigate();
   const { toast, success, error: showError } = useToast();
 
-  const authors = useLiveQuery(() => db.authors.toArray(), []) ?? [];
-  const book = id ? useLiveQuery(() => db.books.get(id), [id]) : null;
+  const authors = useSafeLiveQuery(() => db.authors.toArray(), []) ?? [];
+  const book = id ? useSafeLiveQuery(() => db.books.get(id), [id]) : null;
 
   const [mode, setMode] = useState<'add' | 'edit'>('add');
   const [form, setForm] = useState<any>({

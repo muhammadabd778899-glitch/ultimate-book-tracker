@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate } from 'react-router-dom';
 import { db } from '@/db';
 import { CoverImage } from '@/components/ui/cover-image';
@@ -7,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { computeLibraryStats, statusLabel } from '@/utils/date';
+import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
 import {
   Play,
   BookOpen,
@@ -23,7 +23,7 @@ import {
 export default function Home() {
   const navigate = useNavigate();
 
-  const books = useLiveQuery(() => db.books.toArray(), []) ?? [];
+  const books = useSafeLiveQuery(() => db.books.toArray(), []) ?? [];
 
   const [featuredId, setFeaturedId] = useState<string | null>(null);
 

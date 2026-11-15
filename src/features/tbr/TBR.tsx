@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { db, newId, nowISO } from '@/db';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -9,13 +8,14 @@ import { useToast } from '@/components/ui/toast';
 import { CoverImage } from '@/components/ui/cover-image';
 import { Play, Trash2, Shuffle, Plus, Star, RefreshCw } from 'lucide-react';
 import { statusLabel } from '@/utils/date';
+import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
 
 export default function TBR() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const books = useLiveQuery(() => db.books.where('readingStatus').equals('want-to-read').toArray(), []) ?? [];
-  const allBooks = useLiveQuery(() => db.books.toArray(), []) ?? [];
+  const books = useSafeLiveQuery(() => db.books.where('readingStatus').equals('want-to-read').toArray(), []) ?? [];
+  const allBooks = useSafeLiveQuery(() => db.books.toArray(), []) ?? [];
 
   const [priorityFilter, setPriorityFilter] = useState('all');
 
