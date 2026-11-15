@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home,
   BookOpen,
-  Compass,
   Book,
   Timer,
   Target,
@@ -18,7 +17,6 @@ import {
   BookPlus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { db } from '@/db';
 
 const NAV = [
   { path: '/', label: 'Home', icon: Home },

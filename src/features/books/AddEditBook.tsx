@@ -10,8 +10,7 @@ import { ProgressBar } from '@/components/ui/progress-bar';
 import { useToast } from '@/components/ui/toast';
 import { generateFallbackCover } from '@/utils/cover';
 import { imageFileToDataUrl } from '@/utils/cover';
-import { X, CheckCircle2, AlertCircle, Image as ImageIcon, RotateCw, Trash2 } from 'lucide-react';
-import { Book } from '@/db';
+import { X, Image as ImageIcon, Trash2 } from 'lucide-react';
 
 const GENRES = [
   'Fantasy', 'Science Fiction', 'Mystery', 'Thriller', 'Romance', 'Historical Fiction',
@@ -31,7 +30,7 @@ const STATUSES = [
 export default function AddEditBook() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { toast, success, error: showError } = useToast();
 
   const authors = useLiveQuery(() => db.authors.toArray(), []) ?? [];
   const book = id ? useLiveQuery(() => db.books.get(id), [id]) : null;
@@ -133,11 +132,11 @@ export default function AddEditBook() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      toast.error('Please upload a JPEG, PNG, or WebP image.');
+      showError('Please upload a JPEG, PNG, or WebP image.');
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image must be under 5 MB.');
+      showError('Image must be under 5 MB.');
       return;
     }
     setCoverFile(file);
@@ -174,19 +173,37 @@ export default function AddEditBook() {
       if (primaryAuthor) {
         let a = authors.find((x) => x.name.toLowerCase() === primaryAuthor.toLowerCase());
         if (!a) {
-          a = await db.authors.add({ id: newId(), name: primaryAuthor, biography: null, notes: null, createdAt: nowISO(), updatedAt: nowISO() });
-          authors.push(a as any);
+          const authorId = await db.authors.add({
+            id: newId(),
+            name: primaryAuthor,
+            biography: null,
+            notes: null,
+            createdAt: nowISO(),
+            updatedAt: nowISO(),
+          });
+          authors.push({ id: authorId, name: primaryAuthor, biography: null, notes: null, createdAt: nowISO(), updatedAt: nowISO() } as any);
+          authorIds.push(authorId);
+        } else {
+          authorIds.push(a.id);
         }
-        authorIds.push(a.id);
       }
       const additional = form.additionalAuthors.split(',').map((s: string) => s.trim()).filter(Boolean);
       for (const name of additional) {
         let a = authors.find((x) => x.name.toLowerCase() === name.toLowerCase());
         if (!a) {
-          a = await db.authors.add({ id: newId(), name, biography: null, notes: null, createdAt: nowISO(), updatedAt: nowISO() });
-          authors.push(a as any);
+          const authorId = await db.authors.add({
+            id: newId(),
+            name,
+            biography: null,
+            notes: null,
+            createdAt: nowISO(),
+            updatedAt: nowISO(),
+          });
+          authors.push({ id: authorId, name, biography: null, notes: null, createdAt: nowISO(), updatedAt: nowISO() } as any);
+          authorIds.push(authorId);
+        } else {
+          authorIds.push(a.id);
         }
-        authorIds.push(a.id);
       }
 
       // Handle cover
@@ -246,7 +263,7 @@ export default function AddEditBook() {
         record.id = newId();
         record.createdAt = now;
         await db.books.add(record);
-        toast.success(`“${record.title}” added to your library`);
+        success(`“${record.title}” added to your library`);
       } else {
         record.id = id;
         record.createdAt = book?.createdAt || now;
@@ -255,7 +272,7 @@ export default function AddEditBook() {
       }
       navigate(`/books/${id || record.id}`);
     } catch (err) {
-      toast.error('Failed to save book. Please try again.');
+      showError('Failed to save book. Please try again.');
       console.error(err);
     } finally {
       setSaving(false);

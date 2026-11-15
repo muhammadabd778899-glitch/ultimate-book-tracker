@@ -1,64 +1,31 @@
 import toast, { Toaster as HotToaster, type ToastOptions } from 'react-hot-toast';
 
-export function useToast() {
+type ToastApi = {
+  toast: {
+    (message: string, options?: ToastOptions): string;
+    success: (message: string, options?: ToastOptions) => string;
+    error: (message: string, options?: ToastOptions) => string;
+    info: (message: string, options?: ToastOptions) => string;
+  };
+  success: (message: string, options?: ToastOptions) => string;
+  error: (message: string, options?: ToastOptions) => string;
+  dismiss: () => number;
+};
+
+const boundToast = ((message: string, options?: ToastOptions) => t.toast(message, options)) as ToastApi['toast'];
+boundToast.success = (message, options) => t.success(message, options);
+boundToast.error = (message, options) => t.error(message, options);
+boundToast.info = (message, options) => t.toast(message, options);
+
+export function useToast(): ToastApi {
   return {
-    toast: (message: string, options?: ToastOptions) =>
-      toast(message, {
-        duration: 4000,
-        position: 'bottom-right',
-        style: {
-          borderRadius: '12px',
-          background: '#22222b',
-          color: '#f7f5f2',
-          border: '1px solid #30303a',
-          padding: '12px 16px',
-          fontSize: '14px',
-          ...options.style,
-        },
-        iconTheme: {
-          primary: '#e65a45',
-          secondary: '#f7f5f2',
-        },
-        ...options,
-      }),
-    success: (message: string, options?: ToastOptions) =>
-      toast.success(message, {
-        duration: 4000,
-        position: 'bottom-right',
-        style: {
-          borderRadius: '12px',
-          background: '#22222b',
-          color: '#f7f5f2',
-          border: '1px solid #30303a',
-          ...options.style,
-        },
-        iconTheme: {
-          primary: '#58b88a',
-          secondary: '#f7f5f2',
-        },
-        ...options,
-      }),
-    error: (message: string, options?: ToastOptions) =>
-      toast.error(message, {
-        duration: 5000,
-        position: 'bottom-right',
-        style: {
-          borderRadius: '12px',
-          background: '#22222b',
-          color: '#f7f5f2',
-          border: '1px solid #30303a',
-          ...options.style,
-        },
-        iconTheme: {
-          primary: '#e05c61',
-          secondary: '#f7f5f2',
-        },
-        ...options,
-      }),
-    dismiss: toast.dismiss,
+    toast: boundToast,
+    success: t.success,
+    error: t.error,
+    dismiss: t.dismiss,
   };
 }
 
 export function Toaster() {
-  return <HotToaster position="bottom-right" richColors />;
+  return <HotToaster position="bottom-right" />;
 }

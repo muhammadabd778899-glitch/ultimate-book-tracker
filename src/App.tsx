@@ -1,5 +1,4 @@
-import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
-import { useToast } from '@/components/ui/toast';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import Home from '@/features/home/Home';
 import Library from '@/features/library/Library';
 import AddEditBook from '@/features/books/AddEditBook';
@@ -23,13 +22,12 @@ import { db } from '@/db';
 import { seedDemoData } from '@/seed';
 import { useEffect, useState } from 'react';
 
-const basename = import.meta.env.DEV ? '/' : '/ultimate-book-tracker/';
+const isDev = (import.meta as { env?: { DEV?: boolean } }).env?.DEV === true;
+const basename = isDev ? '/' : '/ultimate-book-tracker/';
 
 export default function App() {
   const [initialized, setInitialized] = useState(false);
-  const navigate = useNavigate();
   const location = useLocation();
-  const { toast } = useToast();
 
   useEffect(() => {
     let mounted = true;

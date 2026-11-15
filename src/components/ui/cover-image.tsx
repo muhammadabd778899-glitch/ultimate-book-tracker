@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db';
 import { BookCover } from './book-cover';
@@ -14,7 +13,9 @@ interface CoverImageProps {
 }
 
 export function CoverImage({ coverImageId, alt = 'Book cover', className, width, height, radius = 'xl' }: CoverImageProps) {
-  const cover = useLiveQuery(() => (coverImageId ? db.covers.get(coverImageId) : null), [coverImageId]);
+  const cover = (useLiveQuery(() => (coverImageId ? db.covers.get(coverImageId) : undefined), [coverImageId]) ?? null) as
+    | { dataUrl: string }
+    | null;
   const src = cover?.dataUrl ?? null;
   return (
     <BookCover src={src} alt={alt} className={className} width={width} height={height} radius={radius} />

@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '@/db';
 import { CoverImage } from '@/components/ui/cover-image';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/input';
 import { ProgressBar } from '@/components/ui/progress-bar';
@@ -20,16 +20,14 @@ import {
   FileText,
   Clock,
   History,
-  MoreHorizontal,
   ChevronLeft,
   Heart,
-  RefreshCw,
 } from 'lucide-react';
 
 export default function BookDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const t = useToast();
 
   const book = useLiveQuery(() => db.books.get(id ?? ''), [id ?? '']) as any;
   const reviews = useLiveQuery(() => db.reviews.where('bookId').equals(id ?? '').toArray(), [id ?? '']) ?? [];
@@ -38,7 +36,6 @@ export default function BookDetail() {
   const authors = useLiveQuery(() => db.authors.toArray(), []) ?? [];
 
   const [tab, setTab] = useState<'overview' | 'progress' | 'journal' | 'quotes' | 'notes' | 'reviews' | 'history'>('overview');
-  const [editMode, setEditMode] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [newQuote, setNewQuote] = useState('');
   const [newNote, setNewNote] = useState('');
@@ -125,7 +122,7 @@ export default function BookDetail() {
               )}
             </div>
             <div className="flex gap-3">
-              <Button onClick={() => setEditMode(true)} className="flex-1">
+              <Button onClick={() => navigate(`/books/${id}/edit`)} className="flex-1">
                 <Edit2 className="w-4 h-4 mr-2" /> Edit Details
               </Button>
               <Button variant="outline" onClick={() => setDeleteOpen(true)}>
@@ -209,8 +206,8 @@ export default function BookDetail() {
                 <ProgressBar value={pct} color="accent" showLabel />
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <Input label="Update Current Page" type="number" value={String(book.currentPage || '')} onChange={(e) => {}} placeholder="0" />
-                <Button onClick={() => toast.info('Use Edit Details to update progress')}>Update</Button>
+                <Input label="Update Current Page" type="number" value={String(book.currentPage || '')} onChange={() => {}} placeholder="0" />
+                <Button onClick={() => t.toast('Use Edit Details to update progress')}>Update</Button>
               </div>
               {book.readingStatus === 'finished' && (
                 <div className="bg-success/10 border border-success/20 rounded-xl p-4">
@@ -228,7 +225,7 @@ export default function BookDetail() {
               <CardContent>
                 <Textarea label="Quote text" value={newQuote} onChange={(e) => setNewQuote(e.target.value)} rows={4} />
                 <Input label="Page number" type="number" value="" onChange={() => {}} />
-                <Button className="w-full" onClick={() => { toast.info('Quote saving requires a full quote model'); }}>Save Quote</Button>
+                <Button className="w-full" onClick={() => { t.toast('Quote saving requires a full quote model'); }}>Save Quote</Button>
               </CardContent>
             </Card>
             <Card className="lg:col-span-2">
@@ -276,8 +273,8 @@ export default function BookDetail() {
                     <label htmlFor="spoiler" className="text-sm text-text-secondary">Contains spoilers</label>
                   </div>
                   <Button className="w-full" onClick={() => {
-                    if (!newReview.trim()) return toast.error('Please write a review first.');
-                    toast.success('Review saved');
+                    if (!newReview.trim()) return t.error('Please write a review first.');
+                    t.success('Review saved');
                   }}>
                     Save Review
                   </Button>
@@ -313,7 +310,7 @@ export default function BookDetail() {
             <CardHeader>Personal Notes</CardHeader>
             <CardContent>
               <Textarea label="Notes" value={newNote} onChange={(e) => setNewNote(e.target.value)} rows={6} />
-              <Button className="w-auto mt-3" onClick={() => toast.info('Note saved')}>Save Note</Button>
+              <Button className="w-auto mt-3" onClick={() => t.toast('Note saved')}>Save Note</Button>
               {book.personalNotes && (
                 <div className="mt-6 border-t border-input pt-4">
                   <p className="text-text-secondary leading-relaxed">{book.personalNotes}</p>
@@ -365,19 +362,11 @@ export default function BookDetail() {
         message="This will remove the book and all its reading history, reviews, and quotes. This cannot be undone."
         onConfirm={() => {
           db.books.delete(id ?? '');
-          toast.success('Book deleted');
+          t.success('Book deleted');
           navigate('/library');
         }}
         destructive
       />
-    </div>
-  );
-}
-
-function CardHeader(children: React.ReactNode) {
-  return (
-    <div className="flex items-center justify-between mb-4">
-      <h3 className="text-lg font-serif font-semibold text-text">{typeof children === 'string' ? children : 'Section'}</h3>
     </div>
   );
 }

@@ -1,6 +1,5 @@
-import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { Image, ImageProps } from 'lucide-react';
+import { Image } from 'lucide-react';
 
 interface BookCoverProps {
   src?: string | null;

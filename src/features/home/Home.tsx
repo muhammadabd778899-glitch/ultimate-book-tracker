@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { db } from '@/db';
 import { CoverImage } from '@/components/ui/cover-image';
 import { Button } from '@/components/ui/button';
-import { Card, CardTitle, CardDescription } from '@/components/ui/card';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { computeLibraryStats, statusLabel, statusColor, formatDate } from '@/utils/date';
+import { computeLibraryStats, statusLabel } from '@/utils/date';
 import {
   Play,
   BookOpen,
@@ -20,15 +19,11 @@ import {
   ChevronRight,
   Star,
 } from 'lucide-react';
-import { useToast } from '@/components/ui/toast';
 
 export default function Home() {
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   const books = useLiveQuery(() => db.books.toArray(), []) ?? [];
-  const shelves = useLiveQuery(() => db.shelves.toArray(), []) ?? [];
-  const sessions = useLiveQuery(() => db.readingSessions.toArray(), []) ?? [];
 
   const [featuredId, setFeaturedId] = useState<string | null>(null);
 
@@ -66,7 +61,7 @@ export default function Home() {
         <StatCard label="Books in Library" value={stats.totalBooks} icon={BookOpen} />
         <StatCard label="Currently Reading" value={stats.currentlyReading} icon={Clock} accent />
         <StatCard label="Finished This Year" value={stats.finished} icon={BookOpen} success />
-        <StatCard label="Pages Read" value={stats.pagesRead} icon={Book} />
+        <StatCard label="Pages Read" value={stats.pagesRead} icon={BookOpen} />
         <StatCard label="Average Rating" value={stats.averageRating || '--'} icon={Star} gold />
         <StatCard label="Reading Streak" value="—" icon={Calendar} />
       </div>
@@ -77,7 +72,7 @@ export default function Home() {
         <div className="grid lg:grid-cols-2 gap-8 items-center">
           <div className="relative">
             {featured ? (
-              <BookCover src={null} alt={featured.title} className="w-full max-w-[320px] mx-auto shadow-cover" />
+              <CoverImage coverImageId={featured.coverImageId} alt={featured.title} className="w-full max-w-[320px] mx-auto shadow-cover" />
             ) : (
               <div className="w-full max-w-[320px] mx-auto">
                 <Skeleton className="h-[480px] rounded-2xl" />
@@ -153,13 +148,13 @@ export default function Home() {
           {[
             { title: 'Continue Reading', books: continueReading, icon: Clock, empty: "You're not reading anything right now." },
             { title: 'Recently Added', books: recentlyAdded, icon: ArrowRight, empty: "No books added yet." },
-            { title: 'Your Next Reads', books: nextReads, icon: Book, empty: "Add books to your TBR queue." },
+            { title: 'Your Next Reads', books: nextReads, icon: BookOpen, empty: "Add books to your TBR queue." },
             { title: 'Recently Finished', books: recentlyFinished, icon: BookOpen, empty: "No finished books yet." },
             { title: 'Your Favorites', books: favorites, icon: Heart, empty: "Mark books as favorites to see them here." },
             { title: 'Highest Rated', books: highestRated, icon: Star, empty: "Rate your finished books." },
             { title: "Books You Haven't Started", books: notStarted, icon: Clock, empty: "All caught up!" },
           ].map(({ title, books: shelfBooks, icon: Icon, empty }) => (
-            <ShelfRow key={title} title={title} books={shelfBooks} Icon={Icon} empty={empty} />
+            <ShelfRow key={title} title={title} books={shelfBooks} icon={Icon} empty={empty} />
           ))}
         </div>
       </section>
@@ -169,7 +164,7 @@ export default function Home() {
         <QuickAction icon={BookPlus} label="Add Book" onClick={handleAddBook} />
         <QuickAction icon={Timer} label="Log Session" onClick={() => navigate('/reading')} />
         <QuickAction icon={Calendar} label="Calendar" onClick={() => navigate('/calendar')} />
-        <QuickAction icon={Book} label="Browse Library" onClick={() => navigate('/library')} />
+        <QuickAction icon={BookOpen} label="Browse Library" onClick={() => navigate('/library')} />
       </section>
     </div>
   );

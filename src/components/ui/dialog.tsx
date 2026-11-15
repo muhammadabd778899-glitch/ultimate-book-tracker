@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { X } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 interface DialogProps {
   open: boolean;
@@ -8,10 +7,9 @@ interface DialogProps {
   title?: string;
   description?: string;
   children: React.ReactNode;
-  className?: string;
 }
 
-export function Dialog({ open, onOpenChange, title, description, children, className }: DialogProps) {
+export function Dialog({ open, onOpenChange, title, description, children }: DialogProps) {
   if (!open) return null;
   return (
     <>

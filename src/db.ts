@@ -243,7 +243,6 @@ export class BookTrackerDB extends Dexie {
 
 // Singleton instance
 export const db = new BookTrackerDB();
-export type { Book, Author, Series, ReadingSession, Review, Quote, Note, Shelf, Goal, Challenge, WishlistItem, Preference, CalendarEntry };
 
 export function nowISO(): string {
   return new Date().toISOString();
