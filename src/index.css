@@ -1,0 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-bg: #101014;
+    --color-surface: #18181f;
+    --color-card: #22222b;
+    --color-elevated: #292934;
+    --color-border: #30303a;
+    --color-accent: #e65a45;
+    --color-accent-deep: #c94338;
+    --color-gold: #d6a85f;
+    --color-text: #f7f5f2;
+    --color-text-secondary: #aaa7b0;
+    --color-text-muted: #77747e;
+    --color-success: #58b88a;
+    --color-warning: #e5a84b;
+    --color-danger: #e05c61;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    overflow-x: hidden;
+  }
+
+  #root {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  ::selection {
+    background: var(--color-accent);
+    color: var(--color-text);
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #101014;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #30303a;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #4a4a55;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-serif);
+    line-height: 1.25;
+  }
+
+  .font-serif {
+    font-family: var(--font-serif);
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  input, textarea, select, button {
+    font-family: inherit;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  [role="button"] {
+    cursor: pointer;
+  }
+}
+
+@layer components {
+  .container {
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+
+  .glass-card {
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: 1rem;
+    box-shadow: var(--shadow-cover);
+  }
+
+  .elevated-card {
+    background: var(--color-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: 0.875rem;
+  }
+
+  .cover-ratio {
+    aspect-ratio: 2 / 3;
+  }
+
+  .spine-ratio {
+    aspect-ratio: 1 / 4;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
