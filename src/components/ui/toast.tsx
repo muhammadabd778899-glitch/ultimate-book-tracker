@@ -1,31 +1,52 @@
-import toast, { Toaster as HotToaster, type ToastOptions } from 'react-hot-toast';
+import baseToast, { Toaster as HotToaster, type ToastOptions } from 'react-hot-toast';
 
-type ToastApi = {
+type ToastOptionsArg = ToastOptions;
+
+export type ToastApi = {
   toast: {
-    (message: string, options?: ToastOptions): string;
-    success: (message: string, options?: ToastOptions) => string;
-    error: (message: string, options?: ToastOptions) => string;
-    info: (message: string, options?: ToastOptions) => string;
+    (message: string, options?: ToastOptionsArg): string;
+    success: (message: string, options?: ToastOptionsArg) => string;
+    error: (message: string, options?: ToastOptionsArg) => string;
+    info: (message: string, options?: ToastOptionsArg) => string;
   };
-  success: (message: string, options?: ToastOptions) => string;
-  error: (message: string, options?: ToastOptions) => string;
-  dismiss: () => number;
+  success: (message: string, options?: ToastOptionsArg) => string;
+  error: (message: string, options?: ToastOptionsArg) => string;
+  info: (message: string, options?: ToastOptionsArg) => string;
+  dismiss: (id?: string) => void;
 };
 
-const boundToast = ((message: string, options?: ToastOptions) => t.toast(message, options)) as ToastApi['toast'];
-boundToast.success = (message, options) => t.success(message, options);
-boundToast.error = (message, options) => t.error(message, options);
-boundToast.info = (message, options) => t.toast(message, options);
+const boundToast = ((message: string, options?: ToastOptionsArg) => baseToast(message, options)) as ToastApi['toast'];
+boundToast.success = (message, options) => baseToast.success(message, options);
+boundToast.error = (message, options) => baseToast.error(message, options);
+boundToast.info = (message, options) => baseToast(message, { ...options, icon: 'i' });
 
 export function useToast(): ToastApi {
   return {
     toast: boundToast,
-    success: t.success,
-    error: t.error,
-    dismiss: t.dismiss,
+    success: (message, options) => baseToast.success(message, options),
+    error: (message, options) => baseToast.error(message, options),
+    info: (message, options) => baseToast(message, options),
+    dismiss: (id) => baseToast.dismiss(id),
   };
 }
 
 export function Toaster() {
-  return <HotToaster position="bottom-right" />;
+  return (
+    <HotToaster
+      position="bottom-right"
+      toastOptions={{
+        style: {
+          background: 'var(--surface, #fff)',
+          color: 'var(--text, #1b1b1f)',
+          border: '1px solid rgba(0,0,0,0.08)',
+          borderRadius: '14px',
+          boxShadow: '0 12px 32px rgba(16,24,40,0.14)',
+          fontSize: '14px',
+          padding: '12px 16px',
+        },
+        success: { iconTheme: { primary: '#2f9e6e', secondary: '#fff' } },
+        error: { iconTheme: { primary: '#d04545', secondary: '#fff' } },
+      }}
+    />
+  );
 }

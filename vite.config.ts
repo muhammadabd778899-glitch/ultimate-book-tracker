@@ -28,6 +28,15 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/_/, /\/[^/?]+\.[^/]+$/],
         runtimeCaching: [
           {
+            urlPattern: /^https:\/\/covers\.openlibrary\.org\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'official-covers',
+              expiration: { maxEntries: 300, maxAgeSeconds: 365 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
             urlPattern: new RegExp(`^${BASE.replace(/\/$/, '')}/covers/.*`, 'i'),
             handler: 'CacheFirst',
             options: {

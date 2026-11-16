@@ -6,13 +6,15 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { CoverImage } from '@/components/ui/cover-image';
-import { Play, Trash2, Shuffle, Plus, Star, RefreshCw } from 'lucide-react';
+import { Play, Trash2, Shuffle, Plus, Star, RefreshCw, Book } from 'lucide-react';
 import { statusLabel } from '@/utils/date';
 import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
+import { useAuthorNames } from '@/hooks/use-author-names';
 
 export default function TBR() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { nameFor } = useAuthorNames();
 
   const books = useSafeLiveQuery(() => db.books.where('readingStatus').equals('want-to-read').toArray(), []) ?? [];
   const allBooks = useSafeLiveQuery(() => db.books.toArray(), []) ?? [];
@@ -75,7 +77,7 @@ export default function TBR() {
           </div>
         ) : (
           books.map((b) => (
-            <TBRCard key={b.id} book={b} onStart={handleStart} onRemove={handleRemove} />
+            <TBRCard key={b.id} book={b} author={nameFor(b.authorIds)} onStart={handleStart} onRemove={handleRemove} />
           ))
         )}
       </div>
@@ -83,7 +85,7 @@ export default function TBR() {
   );
 }
 
-function TBRCard({ book, onStart, onRemove }: { book: any; onStart: (id: string) => void; onRemove: (id: string) => void }) {
+function TBRCard({ book, author, onStart, onRemove }: { book: any; author: string; onStart: (id: string) => void; onRemove: (id: string) => void }) {
   const navigate = useNavigate();
   const { toast } = useToast();
   return (
@@ -92,10 +94,10 @@ function TBRCard({ book, onStart, onRemove }: { book: any; onStart: (id: string)
         <Star className="w-10 h-10" />
       </div>
       <div className="aspect-[2/3] rounded-xl overflow-hidden bg-surface border border-input mb-4">
-        <CoverImage coverImageId={book.coverImageId} alt={book.title} className="w-full h-full object-cover" />
+        <CoverImage coverImageId={book.coverImageId} coverUrl={book.coverUrl} title={book.title} author={author} genre={book.genres?.[0]} alt={book.title} className="h-full w-full" />
       </div>
       <h4 className="text-lg font-serif font-semibold text-text mb-1">{book.title}</h4>
-      <p className="text-xs text-text-secondary mb-4">{book.authorIds.join(', ') || 'Unknown Author'}</p>
+      <p className="text-xs text-text-secondary mb-4">{author}</p>
       <div className="flex justify-between items-center mb-4">
         <span className="text-xs font-medium text-accent bg-accent/10 px-2 py-0.5 rounded">TBR</span>
         <button onClick={() => onStart(book.id)} className="text-xs font-medium text-accent hover:underline">

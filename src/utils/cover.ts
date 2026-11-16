@@ -46,6 +46,8 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return lines;
 }
 
+const fallbackCache = new Map<string, string>();
+
 export function generateFallbackCover({
   title,
   author,
@@ -58,6 +60,28 @@ export function generateFallbackCover({
   genre?: string | null;
   width?: number;
   height?: number;
+}): string {
+  const cacheKey = `${title}|${author ?? ''}|${genre ?? ''}|${width}x${height}`;
+  const cached = fallbackCache.get(cacheKey);
+  if (cached) return cached;
+
+  const result = renderFallbackCover({ title, author, genre, width, height });
+  fallbackCache.set(cacheKey, result);
+  return result;
+}
+
+function renderFallbackCover({
+  title,
+  author,
+  genre,
+  width,
+  height,
+}: {
+  title: string;
+  author?: string | null;
+  genre?: string | null;
+  width: number;
+  height: number;
 }): string {
   const canvas = document.createElement('canvas');
   canvas.width = width;

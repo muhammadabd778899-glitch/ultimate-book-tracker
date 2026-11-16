@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { db, newId, nowISO } from '@/db';
+import { db, newId, nowISO, type Author, type Book as BookType } from '@/db';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { CoverImage } from '@/components/ui/cover-image';
-import { Book, Play, ArrowRight, Trash2 } from 'lucide-react';
+import { Book, Play, ArrowRight, Trash2, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { computePercentage } from '@/utils/date';
 import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
@@ -29,7 +29,9 @@ export default function Series() {
     if (authorName) {
       let a = authors.find((x) => x.name.toLowerCase() === authorName.toLowerCase());
       if (!a) {
-        a = await db.authors.add({ id: newId(), name: authorName, biography: null, notes: null, createdAt: nowISO(), updatedAt: nowISO() } as any);
+        const created: Author = { id: newId(), name: authorName, biography: null, notes: null, createdAt: nowISO(), updatedAt: nowISO() };
+        await db.authors.add(created);
+        a = created;
       }
       authorId = a.id;
     }
@@ -78,7 +80,9 @@ export default function Series() {
           </div>
         ) : (
           series.map((s) => {
-            const seriesBooks = s.orderedBookIds.map((id) => books.find((b) => b.id === id)).filter(Boolean);
+            const seriesBooks = s.orderedBookIds
+              .map((id) => books.find((b) => b.id === id))
+              .filter((b): b is BookType => Boolean(b));
             const readCount = seriesBooks.filter((b) => b.readingStatus === 'finished').length;
             const pct = seriesBooks.length ? Math.round((readCount / seriesBooks.length) * 100) : 0;
             return (
@@ -107,7 +111,7 @@ function SeriesCard({ series, books: seriesBooks, readCount, pct, onAddBook, nav
       <div className="flex gap-2 mb-3">
         {seriesBooks.slice(0, 5).map((b) => (
           <div key={b.id} className="w-16 h-24 rounded-lg overflow-hidden bg-surface border border-input flex items-center justify-center">
-            <CoverImage coverImageId={b.coverImageId} alt={b.title} className="w-full h-full object-cover" />
+            <CoverImage coverImageId={b.coverImageId} coverUrl={b.coverUrl} title={b.title} genre={b.genres?.[0]} alt={b.title} className="h-full w-full" />
           </div>
         ))}
         {seriesBooks.length > 5 && (

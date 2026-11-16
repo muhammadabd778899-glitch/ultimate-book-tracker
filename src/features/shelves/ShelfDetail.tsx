@@ -16,7 +16,7 @@ export default function ShelfDetail() {
 
   if (!shelf) return <div className="container py-20 text-center">Loading shelf…</div>;
 
-  const shelfBooks = shelf.bookIds.map((bid: string) => books.find((b) => b.id === bid)).filter(Boolean);
+  const shelfBooks = shelf.bookIds.map((bid: string) => books.find((b) => b.id === bid)).filter((b: any) => Boolean(b));
 
   const handleRemove = async (bookId: string) => {
     await db.shelves.update(id ?? '', { bookIds: shelf.bookIds.filter((b: string) => b !== bookId), updatedAt: new Date().toISOString() } as any);
@@ -54,7 +54,7 @@ export default function ShelfDetail() {
             <Button onClick={() => {}}>Add Books</Button>
           </div>
         ) : (
-          shelfBooks.map((b) => (
+          shelfBooks.map((b: any) => (
             <ShelfBookCard key={b.id} book={b} onRemove={handleRemove} spine={shelf.coverStyle === 'spine'} />
           ))
         )}
@@ -73,7 +73,7 @@ function ShelfBookCard({ book, onRemove, spine }: { book: any; onRemove: (id: st
       ) : (
         <div className="aspect-[2/3] rounded-xl overflow-hidden bg-surface border border-input group-hover:border-accent/50 transition-colors">
           <div className="w-full h-full bg-gradient-to-b from-transparent to-black/40"></div>
-          <CoverImage coverImageId={book.coverImageId} alt={book.title} className="w-full h-full object-cover" />
+          <CoverImage coverImageId={book.coverImageId} coverUrl={book.coverUrl} title={book.title} genre={book.genres?.[0]} alt={book.title} className="h-full w-full" />
         </div>
       )}
       <h4 className="mt-2 text-sm font-semibold text-text line-clamp-1 text-center">{book.title}</h4>

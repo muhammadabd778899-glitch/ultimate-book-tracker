@@ -1,45 +1,44 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '@/db';
 import { CoverImage } from '@/components/ui/cover-image';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ProgressBar } from '@/components/ui/progress-bar';
-import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmDialog } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/toast';
-import { statusLabel, statusColor, computeLibraryStats } from '@/utils/date';
+import { statusLabel } from '@/utils/date';
 import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
+import { useAuthorNames } from '@/hooks/use-author-names';
 import {
   Search,
-  Filter,
-  SlidersHorizontal,
-  List,
-  Grid,
   Book,
-  SortAsc,
   Trash2,
   Plus,
-  ShieldAlert,
+  SlidersHorizontal,
   LayoutGrid,
   LayoutList,
+  Star,
+  Heart,
+  Check,
+  ArrowUpDown,
 } from 'lucide-react';
 
 const VIEW_MODES = [
-  { id: 'grid', label: 'Cover Grid', icon: LayoutGrid },
-  { id: 'list', label: 'Compact List', icon: LayoutList },
-  { id: 'spine', label: 'Book Spine', icon: Book },
+  { id: 'grid', label: 'Cover grid', icon: LayoutGrid },
+  { id: 'list', label: 'Compact list', icon: LayoutList },
+  { id: 'spine', label: 'Book spines', icon: Book },
 ] as const;
+
+type ViewMode = (typeof VIEW_MODES)[number]['id'];
 
 export default function Library() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const books = useSafeLiveQuery(() => db.books.toArray(), []) ?? [];
-  const authors = useSafeLiveQuery(() => db.authors.toArray(), []) ?? [];
+  const { authors, nameFor } = useAuthorNames();
 
-  // Filter state
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [genreFilter, setGenreFilter] = useState('all');
@@ -47,29 +46,21 @@ export default function Library() {
   const [formatFilter, setFormatFilter] = useState('all');
   const [ratingFilter, setRatingFilter] = useState('all');
   const [sort, setSort] = useState<keyof typeof SORT_OPTIONS>('recentlyAdded');
-  const [view, setView] = useState<'grid' | 'list' | 'spine'>('grid');
+  const [view, setView] = useState<ViewMode>('grid');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  // Derived options
-  const genres = useMemo(
-    () => Array.from(new Set(books.flatMap((b) => b.genres))).sort(),
-    [books]
-  );
+  const genres = useMemo(() => Array.from(new Set(books.flatMap((b) => b.genres))).sort(), [books]);
   const formats = useMemo(
-    () => Array.from(new Set(books.map((b) => b.format).filter(Boolean))).sort(),
+    () => Array.from(new Set(books.map((b) => b.format).filter((f): f is string => Boolean(f)))).sort(),
     [books]
   );
 
   const SORT_OPTIONS: Record<string, (a: any, b: any) => number> = {
     titleAZ: (a, b) => a.title.localeCompare(b.title),
     titleZA: (a, b) => b.title.localeCompare(a.title),
-    author: (a, b) => {
-      const an = authors.find((x) => x.id === a.authorIds[0])?.name ?? '';
-      const bn = authors.find((x) => x.id === b.authorIds[0])?.name ?? '';
-      return an.localeCompare(bn);
-    },
+    author: (a, b) => nameFor(a.authorIds).localeCompare(nameFor(b.authorIds)),
     highestRated: (a, b) => (b.rating ?? 0) - (a.rating ?? 0),
     lowestRated: (a, b) => (a.rating ?? 0) - (b.rating ?? 0),
     recentlyAdded: (a, b) => (b.dateAdded ?? '').localeCompare(a.dateAdded ?? ''),
@@ -80,19 +71,20 @@ export default function Library() {
   };
 
   const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
     return books
       .filter((b) => {
-        const q = search.toLowerCase();
+        const names = nameFor(b.authorIds, '');
         const matchesSearch =
           !q ||
           b.title.toLowerCase().includes(q) ||
           (b.subtitle ?? '').toLowerCase().includes(q) ||
           (b.isbn ?? '').toLowerCase().includes(q) ||
-          b.genres.some((g) => g.toLowerCase().includes(q)) ||
-          b.authorIds.some((id) => authors.find((x) => x.id === id)?.name.toLowerCase().includes(q));
+          names.toLowerCase().includes(q) ||
+          b.genres.some((g) => g.toLowerCase().includes(q));
         const matchesStatus = statusFilter === 'all' || b.readingStatus === statusFilter;
         const matchesGenre = genreFilter === 'all' || b.genres.includes(genreFilter);
-        const matchesAuthor = authorFilter === 'all' || (b.authorIds[0] && authorFilter === b.authorIds[0]);
+        const matchesAuthor = authorFilter === 'all' || b.authorIds.includes(authorFilter);
         const matchesFormat = formatFilter === 'all' || b.format === formatFilter;
         const matchesRating =
           ratingFilter === 'all' ||
@@ -102,137 +94,262 @@ export default function Library() {
         return matchesSearch && matchesStatus && matchesGenre && matchesAuthor && matchesFormat && matchesRating;
       })
       .sort(SORT_OPTIONS[sort]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [books, search, statusFilter, genreFilter, authorFilter, formatFilter, ratingFilter, sort, authors]);
 
-  const allSelected = selectedIds.size > 0 && selectedIds.size === filtered.length;
+  const activeFilters = [
+    statusFilter !== 'all' && {
+      key: 'status',
+      label: STATUS_OPTIONS.find((s) => s.id === statusFilter)?.label ?? statusFilter,
+      clear: () => setStatusFilter('all'),
+    },
+    genreFilter !== 'all' && {
+      key: 'genre',
+      label: titleCase(genreFilter),
+      clear: () => setGenreFilter('all'),
+    },
+    authorFilter !== 'all' && {
+      key: 'author',
+      label: nameFor([authorFilter], 'Unknown author'),
+      clear: () => setAuthorFilter('all'),
+    },
+    formatFilter !== 'all' && { key: 'format', label: formatFilter, clear: () => setFormatFilter('all') },
+    ratingFilter !== 'all' && { key: 'rating', label: ratingFilter === 'unrated' ? 'Unrated' : `${ratingFilter} stars`, clear: () => setRatingFilter('all') },
+  ].filter(Boolean) as { key: string; label: string; clear: () => void }[];
 
-  const handleDelete = (id: string) => {
-    setDeleteId(id);
+  const activeFilterCount = activeFilters.length;
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   const confirmDelete = async () => {
     if (!deleteId) return;
     await db.books.delete(deleteId);
     setDeleteId(null);
+    setSelectedIds(new Set());
     toast.success('Book removed from library');
   };
 
-  const handleBulkAction = (action: string) => {
+  const deleteSelected = async () => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
-    switch (action) {
-      case 'delete':
-        setDeleteId(ids[0]); // simplify: delete first for demo; ideally multi-delete
-        break;
-      default:
-        toast.info(`Bulk ${action} applied to ${ids.length} books`);
-    }
+    await db.books.bulkDelete(ids);
     setSelectedIds(new Set());
+    toast.success(`${ids.length} book${ids.length > 1 ? 's' : ''} removed`);
   };
 
   return (
-    <div className="container py-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+    <div className="container py-8 mb-10">
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-3xl font-serif font-bold text-text">My Library</h1>
-          <p className="text-text-secondary">{filtered.length} books</p>
+          <h1 className="font-serif text-3xl font-bold text-text md:text-4xl">My Library</h1>
+          <p className="mt-1 text-sm text-text-secondary">
+            {filtered.length === books.length
+              ? `${books.length} book${books.length === 1 ? '' : 's'} on your shelves`
+              : `${filtered.length} of ${books.length} books`}
+          </p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => navigate('/books/add')} className="flex items-center gap-2">
-            <Plus className="w-4 h-4" /> Add Book
-          </Button>
-          <Button variant="outline" onClick={() => setFiltersOpen(!filtersOpen)} className="flex items-center gap-2 px-4">
-            <SlidersHorizontal className="w-4 h-4" /> Filter
+            <Plus className="h-4 w-4" /> Add book
           </Button>
         </div>
       </div>
 
-      {/* Search */}
-      <div className="mb-6">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center">
         <Input
-          placeholder="Search title, author, ISBN, genre…"
+          placeholder="Search title, author, ISBN or genre…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="max-w-md"
-          leftIcon={<Search className="w-4 h-4 text-text-muted" />}
+          className="w-full lg:max-w-md"
+          leftIcon={<Search className="h-4 w-4 text-text-muted" />}
         />
-      </div>
-
-      {/* Filters bar */}
-      <div className={`flex flex-wrap gap-3 mb-6 ${filtersOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        <FilterPill label="Status" value={statusFilter === 'all' ? 'All' : statusLabel(statusFilter)} onChange={setStatusFilter} options={STATUS_OPTIONS} />
-        <FilterPill label="Genre" value={genreFilter === 'all' ? 'All genres' : genreFilter} onChange={setGenreFilter} options={genres} />
-        <FilterPill label="Author" value={authorFilter === 'all' ? 'All authors' : authorFilter} onChange={setAuthorFilter} options={authors.map((a) => a.name)} />
-        <FilterPill label="Format" value={formatFilter === 'all' ? 'All formats' : formatFilter} onChange={setFormatFilter} options={formats} />
-        <FilterPill label="Rating" value={ratingFilter === 'all' ? 'Any rating' : ratingFilter} onChange={setRatingFilter} options={['4+', '3+', 'unrated']} />
-        <FilterPill label="Sort" value={sort} onChange={setSort} options={Object.keys(SORT_OPTIONS)} />
-      </div>
-
-      {/* View toggle */}
-      <div className="flex items-center gap-2 mb-6">
-        <span className="text-xs text-text-muted uppercase tracking-wider">View</span>
-        {VIEW_MODES.map((m) => {
-          const Icon = m.icon;
-          return (
-            <button
-              key={m.id}
-              onClick={() => setView(m.id as any)}
-              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
-                view === m.id ? 'bg-accent text-text' : 'bg-surface text-text-secondary hover:bg-elevated'
-              }`}
+        <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+          <Button
+            variant={filtersOpen || activeFilterCount ? 'default' : 'outline'}
+            onClick={() => setFiltersOpen((o) => !o)}
+            className="flex items-center gap-2 px-4"
+          >
+            <SlidersHorizontal className="h-4 w-4" /> Filters
+            {activeFilterCount > 0 && (
+              <span className="ml-1 rounded-full bg-black/25 px-1.5 text-[11px] font-bold">{activeFilterCount}</span>
+            )}
+          </Button>
+          <label className="flex h-11 items-center gap-2 rounded-xl border border-input bg-surface px-3 text-sm text-text-secondary">
+            <ArrowUpDown className="h-4 w-4 text-text-muted" />
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as keyof typeof SORT_OPTIONS)}
+              className="cursor-pointer bg-transparent pr-1 text-sm font-medium text-text focus:outline-none"
             >
-              <Icon className="w-4 h-4" />
-            </button>
-          );
-        })}
+              {SORT_OPTIONS_LIST.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="flex items-center gap-1 rounded-xl border border-input bg-surface p-1">
+            {VIEW_MODES.map((m) => {
+              const Icon = m.icon;
+              return (
+                <button
+                  key={m.id}
+                  title={m.label}
+                  onClick={() => setView(m.id)}
+                  className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+                    view === m.id ? 'bg-accent text-white' : 'text-text-secondary hover:bg-elevated hover:text-text'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
-      {/* Empty state */}
-      {filtered.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Book className="w-16 h-16 mx-auto mb-4 text-text-muted opacity-50" />
-          <h3 className="text-xl font-serif font-semibold text-text">No books found</h3>
-          <p className="text-text-secondary mb-6">Try adjusting your filters or add a new book.</p>
-          <Button onClick={() => navigate('/books/add')}>Add Book</Button>
+      {(filtersOpen || activeFilterCount > 0) && (
+        <div className="mb-5 flex flex-wrap items-center gap-2 animate-fade-in">
+          {filtersOpen && (
+            <>
+              <FilterPill
+                label="Status"
+                value={statusFilter}
+                placeholder="All statuses"
+                onChange={setStatusFilter}
+                options={STATUS_OPTIONS.filter((s) => s.id !== 'all').map((s) => ({ value: s.id, label: s.label }))}
+              />
+              <FilterPill
+                label="Genre"
+                value={genreFilter}
+                placeholder="All genres"
+                onChange={setGenreFilter}
+                options={genres.map((g) => ({ value: g, label: titleCase(g) }))}
+              />
+              <FilterPill
+                label="Author"
+                value={authorFilter}
+                placeholder="All authors"
+                onChange={setAuthorFilter}
+                options={authors.map((a) => ({ value: a.id, label: a.name }))}
+              />
+              <FilterPill
+                label="Format"
+                value={formatFilter}
+                placeholder="All formats"
+                onChange={setFormatFilter}
+                options={formats.map((f) => ({ value: f, label: f }))}
+              />
+              <FilterPill
+                label="Rating"
+                value={ratingFilter}
+                placeholder="Any rating"
+                onChange={setRatingFilter}
+                options={[
+                  { value: '4+', label: '4 stars & up' },
+                  { value: '3+', label: '3 stars & up' },
+                  { value: 'unrated', label: 'Unrated' },
+                ]}
+              />
+            </>
+          )}
+          {activeFilters.map((f) => (
+            <button
+              key={f.key}
+              onClick={f.clear}
+              className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-medium text-text"
+            >
+              {f.label}
+              <span className="text-text-muted">×</span>
+            </button>
+          ))}
+          {activeFilterCount > 0 && (
+            <button
+              onClick={() => {
+                setStatusFilter('all');
+                setGenreFilter('all');
+                setAuthorFilter('all');
+                setFormatFilter('all');
+                setRatingFilter('all');
+              }}
+              className="text-xs font-medium text-text-muted underline-offset-2 hover:text-text hover:underline"
+            >
+              Clear all
+            </button>
+          )}
         </div>
       )}
 
-      {/* Grid view */}
-      {view === 'grid' && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-input bg-surface/40 py-24 text-center">
+          <Book className="mb-4 h-14 w-14 text-text-muted opacity-40" />
+          <h3 className="font-serif text-xl font-semibold text-text">
+            {books.length === 0 ? 'Your library is empty' : 'No books match'}
+          </h3>
+          <p className="mb-6 mt-1 max-w-sm text-sm text-text-secondary">
+            {books.length === 0
+              ? 'Add your first book — or load the demo library from Settings.'
+              : 'Try a different search or clear your filters to see everything on your shelves.'}
+          </p>
+          <Button onClick={() => navigate('/books/add')}>
+            <Plus className="mr-2 h-4 w-4" /> Add a book
+          </Button>
+        </div>
+      ) : view === 'grid' ? (
+        <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6">
           {filtered.map((b) => (
-            <LibraryCard key={b.id} book={b} selected={selectedIds.has(b.id)} onToggle={() => toggleSelection(b.id)} onClick={() => navigate(`/books/${b.id}`)} />
+            <LibraryCard
+              key={b.id}
+              book={b}
+              author={nameFor(b.authorIds)}
+              selected={selectedIds.has(b.id)}
+              onToggle={() => toggleSelection(b.id)}
+              onClick={() => navigate(`/books/${b.id}`)}
+            />
+          ))}
+        </div>
+      ) : view === 'list' ? (
+        <div className="overflow-hidden rounded-2xl border border-input bg-card">
+          {filtered.map((b) => (
+            <LibraryListItem
+              key={b.id}
+              book={b}
+              author={nameFor(b.authorIds)}
+              selected={selectedIds.has(b.id)}
+              onToggle={() => toggleSelection(b.id)}
+              onClick={() => navigate(`/books/${b.id}`)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-end gap-2 rounded-2xl border border-input bg-surface/40 p-6">
+          {filtered.map((b) => (
+            <SpineBook
+              key={b.id}
+              book={b}
+              selected={selectedIds.has(b.id)}
+              onToggle={() => toggleSelection(b.id)}
+              onClick={() => navigate(`/books/${b.id}`)}
+            />
           ))}
         </div>
       )}
 
-      {/* List view */}
-      {view === 'list' && (
-        <div className="divide-y divide-input">
-          {filtered.map((b) => (
-            <LibraryListItem key={b.id} book={b} selected={selectedIds.has(b.id)} onToggle={() => toggleSelection(b.id)} onClick={() => navigate(`/books/${b.id}`)} />
-          ))}
-        </div>
-      )}
-
-      {/* Spine view */}
-      {view === 'spine' && (
-        <div className="flex gap-2 overflow-x-auto pb-8">
-          {filtered.map((b) => (
-            <SpineBook key={b.id} book={b} selected={selectedIds.has(b.id)} onToggle={() => toggleSelection(b.id)} onClick={() => navigate(`/books/${b.id}`)} />
-          ))}
-        </div>
-      )}
-
-      {/* Bulk action bar */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex gap-3 rounded-2xl border border-input bg-card p-4 shadow-cover">
-          <span className="text-xs text-text-secondary">{selectedIds.size} selected</span>
-          <Button variant="outline" size="sm" onClick={() => setSelectedIds(new Set())}>
+        <div className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-input bg-card px-4 py-3 shadow-cover">
+          <span className="text-sm font-medium text-text">{selectedIds.size} selected</span>
+          <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
             Clear
           </Button>
-          <Button variant="danger" size="sm" onClick={() => handleBulkAction('delete')}>
-            <Trash2 className="w-4 h-4 mr-1" /> Delete
+          <Button variant="outline" size="sm" onClick={deleteSelected}>
+            <Trash2 className="mr-1 h-4 w-4" /> Delete
           </Button>
         </div>
       )}
@@ -247,13 +364,6 @@ export default function Library() {
       />
     </div>
   );
-
-  function toggleSelection(id: string) {
-    const next = new Set(selectedIds);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setSelectedIds(next);
-  }
 }
 
 const STATUS_OPTIONS = [
@@ -265,105 +375,316 @@ const STATUS_OPTIONS = [
   { id: 'did-not-finish', label: 'Did Not Finish' },
 ];
 
-function FilterPill({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (v: string) => void }) {
+const SORT_OPTIONS_LIST = [
+  { value: 'recentlyAdded', label: 'Recently added' },
+  { value: 'oldestAdded', label: 'Oldest added' },
+  { value: 'titleAZ', label: 'Title A → Z' },
+  { value: 'titleZA', label: 'Title Z → A' },
+  { value: 'author', label: 'Author A → Z' },
+  { value: 'highestRated', label: 'Highest rated' },
+  { value: 'lowestRated', label: 'Lowest rated' },
+  { value: 'recentlyFinished', label: 'Recently finished' },
+  { value: 'progress', label: 'Reading progress' },
+  { value: 'pageCount', label: 'Page count' },
+];
+
+const STATUS_TONE: Record<string, { dot: string; pill: string }> = {
+  finished: { dot: 'bg-success', pill: 'bg-black/55' },
+  'currently-reading': { dot: 'bg-accent', pill: 'bg-black/60' },
+  'want-to-read': { dot: 'bg-gold', pill: 'bg-black/55' },
+  'on-hold': { dot: 'bg-warning', pill: 'bg-black/55' },
+  'did-not-finish': { dot: 'bg-danger', pill: 'bg-black/55' },
+};
+
+function titleCase(value: string) {
+  return value.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function FilterPill({
+  label,
+  value,
+  placeholder,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  options: { value: string; label: string }[];
+  onChange: (v: string) => void;
+}) {
   const [open, setOpen] = useState(false);
+  const selected = options.find((o) => o.value === value);
   return (
     <div className="relative inline-block">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-3 py-2 rounded-xl border border-input bg-surface text-sm text-text hover:bg-elevated"
+        className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors ${
+          selected
+            ? 'border-accent/40 bg-accent/10 text-text'
+            : 'border-input bg-surface text-text-secondary hover:bg-elevated hover:text-text'
+        }`}
       >
-        {label}: {value}
-        <span className="w-3 h-3 border-b border-r border-text-muted rotate-45" />
+        <span className="text-text-muted">{label}:</span>
+        <span className="font-medium">{selected?.label ?? placeholder}</span>
+        <svg className="h-3 w-3 opacity-60" viewBox="0 0 12 12" fill="none">
+          <path d="M3 4.5 6 7.5 9 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
       </button>
       {open && (
-        <div className="absolute top-full left-0 mt-2 w-full rounded-xl border border-input bg-card shadow-cover z-20">
-          {options.map((o) => (
-            <button
-              key={o}
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-full z-20 mt-2 max-h-72 min-w-full overflow-y-auto whitespace-nowrap rounded-xl border border-input bg-card py-1 shadow-cover">
+            <FilterOption
+              label={placeholder}
+              active={!selected}
               onClick={() => {
-                onChange(o);
+                onChange('all');
                 setOpen(false);
               }}
-              className="w-full px-3 py-2 text-sm text-text-secondary hover:bg-elevated hover:text-accent"
-            >
-              {o}
-            </button>
-          ))}
-        </div>
+            />
+            {options.map((o) => (
+              <FilterOption
+                key={o.value}
+                label={o.label}
+                active={o.value === value}
+                onClick={() => {
+                  onChange(o.value);
+                  setOpen(false);
+                }}
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
 }
 
-function LibraryCard({ book, selected, onToggle, onClick }: { book: any; selected: boolean; onToggle: () => void; onClick: () => void }) {
-  const navigate = useNavigate();
+function FilterOption({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
-    <div className="group relative cursor-pointer">
-      <input
-        type="checkbox"
-        checked={selected}
-        onChange={onToggle}
-        className="absolute top-2 left-2 z-20 hidden group-focus:block"
-      />
-      <div className="aspect-[2/3] rounded-xl overflow-hidden bg-surface border border-transparent group-hover:border-accent/50 transition-colors">
-        <div className="w-full h-full bg-gradient-to-b from-transparent to-black/40"></div>
-        <CoverImage coverImageId={book.coverImageId} alt={book.title} className="w-full h-full object-cover" />
-        {book.isFavorite && (
-          <div className="absolute top-2 right-2">
-            <ShieldAlert className="w-4 h-4 fill-gold text-gold drop-shadow-lg" />
-          </div>
-        )}
-        {book.percentageComplete && book.percentageComplete > 0 && (
-          <div className="absolute bottom-2 left-2 right-2">
-            <ProgressBar value={book.percentageComplete} color="gold" className="h-1.5" />
-          </div>
-        )}
-      </div>
-      <h4 className="mt-2 text-sm font-semibold text-text line-clamp-1">{book.title}</h4>
-      <p className="text-xs text-text-secondary line-clamp-1">{book.authorIds.join(', ') || 'Unknown Author'}</p>
-      <p className="text-xs text-text-muted">{statusLabel(book.readingStatus)}</p>
-    </div>
-  );
-}
-
-function LibraryListItem({ book, selected, onToggle, onClick }: { book: any; selected: boolean; onToggle: () => void; onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="w-full flex items-center gap-4 px-4 py-3 hover:bg-elevated transition-colors group">
-      <input type="checkbox" checked={selected} onChange={onToggle} className="shrink-0" />
-      <div className="relative w-16 h-24 shrink-0 rounded-lg overflow-hidden bg-surface">
-        <CoverImage coverImageId={book.coverImageId} alt={book.title} className="w-full h-full object-cover" radius="md" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <h4 className="text-sm font-semibold text-text truncate">{book.title}</h4>
-        <p className="text-xs text-text-secondary truncate">{book.authorIds.join(', ') || 'Unknown Author'}</p>
-        <p className="text-xs text-text-muted">{statusLabel(book.readingStatus)} • {book.genres.join(', ') || 'General'}</p>
-      </div>
-      {book.percentageComplete && book.percentageComplete > 0 && (
-        <ProgressBar value={book.percentageComplete} color="accent" className="w-32 h-1.5 shrink-0" />
-      )}
+    <button
+      onClick={onClick}
+      className={`block w-full px-3 py-2 text-left text-sm transition-colors ${
+        active ? 'bg-accent/10 font-medium text-accent' : 'text-text-secondary hover:bg-elevated hover:text-text'
+      }`}
+    >
+      {label}
     </button>
   );
 }
 
-function SpineBook({ book, selected, onToggle, onClick }: { book: any; selected: boolean; onToggle: () => void; onClick: () => void }) {
+function SelectBox({ selected, onToggle }: { selected: boolean; onToggle: () => void }) {
   return (
-    <button onClick={onClick} className="flex flex-col items-center gap-2 shrink-0 w-14 cursor-pointer group">
-      <input type="checkbox" checked={selected} onChange={onToggle} className="z-20" />
-      <div className="w-full h-48 rounded-sm overflow-hidden bg-surface border border-input flex items-end justify-center p-1 group-hover:scale-105 transition-transform">
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
+      aria-label={selected ? 'Deselect book' : 'Select book'}
+      className={`flex h-6 w-6 items-center justify-center rounded-full border shadow-sm backdrop-blur transition-all ${
+        selected
+          ? 'border-accent bg-accent text-white'
+          : 'border-white/60 bg-black/35 text-transparent opacity-0 group-hover:opacity-100 focus:opacity-100'
+      }`}
+    >
+      <Check className="h-3.5 w-3.5" strokeWidth={3} />
+    </button>
+  );
+}
+
+function LibraryCard({
+  book,
+  author,
+  selected,
+  onToggle,
+  onClick,
+}: {
+  book: any;
+  author: string;
+  selected: boolean;
+  onToggle: () => void;
+  onClick: () => void;
+}) {
+  const tone = STATUS_TONE[book.readingStatus] ?? { dot: 'bg-text-muted', pill: 'bg-black/55' };
+  const progress = typeof book.percentageComplete === 'number' ? book.percentageComplete : 0;
+  const inProgress = progress > 0 && progress < 100;
+
+  return (
+    <div className="group relative">
+      <button onClick={onClick} className="block w-full text-left">
         <div
-          className="w-full rounded-t-sm"
-          style={{ background: book.genres[0] ? genreColor(book.genres[0]) : '#30303a' }}
+          className={`relative aspect-[2/3] overflow-hidden rounded-xl bg-surface shadow-cover ring-1 transition-all duration-300 group-hover:-translate-y-1.5 group-hover:shadow-hero ${
+            selected ? 'ring-2 ring-accent' : 'ring-black/15'
+          }`}
         >
-          <div className="h-1 bg-black/20" />
+          <CoverImage
+            coverImageId={book.coverImageId}
+            coverUrl={book.coverUrl}
+            title={book.title}
+            author={author}
+            genre={book.genres?.[0]}
+            alt={book.title}
+            className="h-full w-full"
+            radius="lg"
+          />
+          <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" />
+
+          <span
+            className={`absolute left-2 top-2 inline-flex items-center gap-1 rounded-full ${tone.pill} px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur`}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
+            {statusLabel(book.readingStatus)}
+          </span>
+          {book.isFavorite && (
+            <span className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/45 backdrop-blur">
+              <Heart className="h-3.5 w-3.5 fill-accent text-accent" />
+            </span>
+          )}
+
+          {inProgress && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent px-2 pb-2 pt-8">
+              <div className="mb-1 flex items-center justify-between text-[10px] font-semibold text-white">
+                <span>{progress}%</span>
+                <span className="opacity-75">
+                  {book.currentPage ?? 0}/{book.pageCount ?? '?'}p
+                </span>
+              </div>
+              <ProgressBar value={progress} color="gold" className="h-1.5" />
+            </div>
+          )}
         </div>
+
+        <h4 className="mt-2.5 line-clamp-2 text-[13px] font-semibold leading-snug text-text">{book.title}</h4>
+        <p className="mt-0.5 truncate text-xs text-text-secondary">{author || 'Unknown author'}</p>
+        <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-text-muted">
+          {book.rating ? (
+            <span className="inline-flex items-center gap-0.5 text-gold">
+              <Star className="h-3 w-3 fill-gold" /> {book.rating}
+            </span>
+          ) : null}
+          {book.genres[0] ? <span className="truncate">{titleCase(book.genres[0])}</span> : null}
+          {book.pageCount ? <span className="ml-auto shrink-0 opacity-70">{book.pageCount}p</span> : null}
+        </div>
+      </button>
+      <div className="absolute left-2 top-2 z-10">
+        <SelectBox selected={selected} onToggle={onToggle} />
       </div>
-      <h4 className="text-[10px] font-semibold text-text text-center leading-tight">{book.title}</h4>
-    </button>
+    </div>
   );
 }
 
-function genreColor(g: string): string {
+function LibraryListItem({
+  book,
+  author,
+  selected,
+  onToggle,
+  onClick,
+}: {
+  book: any;
+  author: string;
+  selected: boolean;
+  onToggle: () => void;
+  onClick: () => void;
+}) {
+  const progress = typeof book.percentageComplete === 'number' ? book.percentageComplete : 0;
+  return (
+    <div
+      className={`group flex cursor-pointer items-center gap-4 border-b border-input/60 px-4 py-3 transition-colors last:border-b-0 hover:bg-elevated ${
+        selected ? 'bg-accent/5' : ''
+      }`}
+      onClick={onClick}
+    >
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
+        aria-label={selected ? 'Deselect book' : 'Select book'}
+        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
+          selected ? 'border-accent bg-accent text-white' : 'border-input text-transparent hover:border-accent/60'
+        }`}
+      >
+        <Check className="h-3 w-3" strokeWidth={3} />
+      </button>
+      <div className="h-[84px] w-14 shrink-0">
+        <CoverImage
+          coverImageId={book.coverImageId}
+          coverUrl={book.coverUrl}
+          title={book.title}
+          author={author}
+          genre={book.genres?.[0]}
+          alt={book.title}
+          className="h-full w-full shadow-cover"
+          radius="md"
+        />
+      </div>
+      <div className="min-w-0 flex-1">
+        <h4 className="truncate text-sm font-semibold text-text">{book.title}</h4>
+        <p className="truncate text-xs text-text-secondary">{author || 'Unknown author'}</p>
+        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-text-muted">
+          <span className="rounded-full bg-surface px-2 py-0.5">{statusLabel(book.readingStatus)}</span>
+          {book.genres[0] && <span>{titleCase(book.genres[0])}</span>}
+          {book.rating ? (
+            <span className="inline-flex items-center gap-0.5 text-gold">
+              <Star className="h-3 w-3 fill-gold" /> {book.rating}
+            </span>
+          ) : null}
+        </div>
+      </div>
+      {progress > 0 && (
+        <div className="hidden w-32 shrink-0 sm:block">
+          <div className="mb-1 text-right text-[11px] text-text-muted">{progress}%</div>
+          <ProgressBar value={progress} color="accent" className="h-1.5" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SpineBook({
+  book,
+  selected,
+  onToggle,
+  onClick,
+}: {
+  book: any;
+  selected: boolean;
+  onToggle: () => void;
+  onClick: () => void;
+}) {
+  const color = genreColor(book.genres[0]);
+  return (
+    <div className="group relative">
+      <button onClick={onClick} className="block" title={book.title}>
+        <div
+          className={`relative flex h-56 w-14 items-center justify-center overflow-hidden rounded-md shadow-cover ring-1 ring-black/25 transition-transform group-hover:-translate-y-1.5 ${
+            selected ? 'ring-2 ring-accent' : ''
+          }`}
+          style={{ background: `linear-gradient(90deg, ${shade(color, 34)} 0%, ${color} 22%, ${shade(color, -10)} 100%)` }}
+        >
+          <span className="absolute inset-y-0 left-0 w-[3px] bg-black/25" />
+          <span className="[writing-mode:vertical-rl] rotate-180 truncate px-1 text-[11px] font-semibold tracking-wide text-white/95">
+            {book.title}
+          </span>
+        </div>
+      </button>
+      <div className="absolute -left-1 top-1 z-10">
+        <SelectBox selected={selected} onToggle={onToggle} />
+      </div>
+    </div>
+  );
+}
+
+function shade(hex: string, amount: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.min(255, Math.max(0, ((n >> 16) & 255) + amount));
+  const g = Math.min(255, Math.max(0, ((n >> 8) & 255) + amount));
+  const b = Math.min(255, Math.max(0, (n & 255) + amount));
+  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
+}
+
+function genreColor(g?: string): string {
   const colors: Record<string, string> = {
     fantasy: '#6366f1',
     'science-fiction': '#0891b2',
@@ -382,5 +703,5 @@ function genreColor(g: string): string {
     comics: '#ea580c',
     'graphic-novels': '#c026d3',
   };
-  return colors[g] ?? '#6b7280';
+  return (g && colors[g]) ?? '#6b7280';
 }

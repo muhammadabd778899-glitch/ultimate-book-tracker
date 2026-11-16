@@ -37,7 +37,7 @@ export default function Onboarding() {
             <Play className="w-5 h-5 text-accent" />
             <span className="text-lg font-semibold text-text">Explore Demo Library</span>
           </div>
-          <p className="text-text-secondary text-sm mb-4">Browse ~40 fictional books with covers, ratings, reviews, and stats to see the app in action.</p>
+          <p className="text-text-secondary text-sm mb-4">Browse 35 bestselling books with real covers, ratings, reviews and reading stats to see the app in action.</p>
           <p className="text-xs text-text-muted">Demo data can be removed anytime.</p>
         </Card>
         <Card className="p-8 cursor-pointer" onClick={() => {

@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { computeLibraryStats, booksFinishedInRange, pagesReadInRange, readingHoursInRange, getYearRange, todayISO } from '@/utils/date';
-import { Book, Target, Flag, Trophy, ArrowUpRight } from 'lucide-react';
+import { Book, Target, Flag, Trophy, ArrowUpRight, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
 
@@ -83,9 +83,9 @@ export default function Goals() {
             <div className="text-center py-10 text-text-muted">No goals set yet.</div>
           ) : (
             goals.map((g) => {
-              const pct = g.target ? Math.min(Math.round((g.currentProgress / g.target) * 100), 100) : 0;
+              const pct = g.target ? Math.min(Math.round(((g.currentProgress ?? 0) / g.target) * 100), 100) : 0;
               return (
-                <Card className="p-4">
+                <Card key={g.id} className="p-4">
                   <div className="flex justify-between items-start mb-3">
                     <div>
                       <h4 className="font-serif font-semibold text-text">{g.name}</h4>
@@ -120,7 +120,7 @@ export default function Goals() {
                   <span className="text-xs font-mono text-accent">{c.progress} / {c.target}</span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-elevated overflow-hidden mb-2">
-                  <div className="h-full bg-gold transition-all duration-500" style={{ width: `${Math.min(Math.round((c.progress / c.target) * 100), 100)}%` }} />
+                  <div className="h-full bg-gold transition-all duration-500" style={{ width: `${Math.min(Math.round(((c.progress ?? 0) / (c.target || 1)) * 100), 100)}%` }} />
                 </div>
               </Card>
             ))

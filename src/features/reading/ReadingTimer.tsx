@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { db, newId, nowISO } from '@/db';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Input, Textarea } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { computePercentage, todayISO } from '@/utils/date';
 import { Play, Pause, RefreshCw, Timer, Plus, Trash2 } from 'lucide-react';
@@ -21,6 +21,7 @@ export default function ReadingTimer() {
   const [startPage, setStartPage] = useState('');
   const [endPage, setEndPage] = useState('');
   const [notes, setNotes] = useState('');
+  const [manualMinutes, setManualMinutes] = useState('');
 
   const timerRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
@@ -135,6 +136,51 @@ export default function ReadingTimer() {
     toast.info('Timer cancelled');
   };
 
+  const logManualSession = async () => {
+    if (!activeBookId) {
+      toast.error('Select a book first.');
+      return;
+    }
+    const minutes = Number(manualMinutes);
+    if (!minutes || minutes <= 0) {
+      toast.error('Enter how many minutes you read.');
+      return;
+    }
+    const pagesRead = startPage && endPage ? Math.max(0, Number(endPage) - Number(startPage)) : null;
+    const ended = new Date();
+    const started = new Date(ended.getTime() - minutes * 60_000);
+    await db.readingSessions.add({
+      id: newId(),
+      bookId: activeBookId,
+      date: todayISO(),
+      startTime: started.toTimeString().slice(0, 5),
+      endTime: ended.toTimeString().slice(0, 5),
+      durationMinutes: minutes,
+      startPage: startPage ? Number(startPage) : null,
+      endPage: endPage ? Number(endPage) : null,
+      pagesRead,
+      notes: notes || null,
+      readingUnit: 'pages',
+      startedAt: started.toISOString(),
+      endedAt: ended.toISOString(),
+      createdAt: nowISO(),
+      updatedAt: nowISO(),
+    } as any);
+    const b = await db.books.get(activeBookId);
+    if (b) {
+      const updates: any = { updatedAt: nowISO() };
+      if (pagesRead && b.currentPage != null) updates.currentPage = b.currentPage + pagesRead;
+      if (b.pageCount) updates.percentageComplete = computePercentage(updates.currentPage ?? b.currentPage, b.pageCount);
+      if (updates.percentageComplete >= 100) updates.readingStatus = 'finished';
+      await db.books.update(b.id, updates);
+    }
+    setStartPage('');
+    setEndPage('');
+    setNotes('');
+    setManualMinutes('');
+    toast.success('Reading session logged');
+  };
+
   const minutesRead = Math.floor(elapsed / 60);
 
   return (
@@ -171,7 +217,7 @@ export default function ReadingTimer() {
             {activeBook ? (
               <div className="flex items-center gap-3">
                 <div className="w-20 h-28 rounded-lg overflow-hidden bg-surface border border-input">
-                  <CoverImage coverImageId={activeBook.coverImageId} alt={activeBook.title} className="w-full h-full object-cover" />
+                  <CoverImage coverImageId={activeBook.coverImageId} coverUrl={activeBook.coverUrl} title={activeBook.title} genre={activeBook.genres?.[0]} alt={activeBook.title} className="h-full w-full" />
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-text">{activeBook.title}</p>
@@ -227,8 +273,8 @@ export default function ReadingTimer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Input label="Start Page" type="number" value={startPage} onChange={(e) => setStartPage(e.target.value)} />
           <Input label="End Page" type="number" value={endPage} onChange={(e) => setEndPage(e.target.value)} />
-          <Input label="Duration (min)" type="number" value={String(minutesRead)} onChange={(e) => {}} />
-          <Button className="col-span-2 md:col-span-1" onClick={() => toast.info('Manual entry saved')}>Log Session</Button>
+          <Input label="Duration (min)" type="number" value={manualMinutes} onChange={(e) => setManualMinutes(e.target.value)} />
+          <Button className="col-span-2 md:col-span-1" onClick={logManualSession}>Log Session</Button>
         </div>
         <Textarea label="Session notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="mt-4" />
       </Card>

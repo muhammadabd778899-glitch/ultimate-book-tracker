@@ -73,7 +73,7 @@ export function ConfirmDialog({
                 onConfirm();
                 onOpenChange(false);
               }}
-              className={`flex-1 h-10 rounded-xl bg-${destructive ? 'danger' : 'accent'} text-text hover:opacity-90`}
+              className={`flex-1 h-10 rounded-xl text-text hover:opacity-90 ${destructive ? 'bg-danger' : 'bg-accent'}`}
             >
               {confirmLabel}
             </button>

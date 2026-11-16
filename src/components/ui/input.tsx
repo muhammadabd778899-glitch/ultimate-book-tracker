@@ -6,9 +6,10 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   error?: string;
   helper?: string;
   required?: boolean;
+  leftIcon?: React.ReactNode;
 }
 
-export function Input({ label, error, helper, required, className, ...props }: InputProps) {
+export function Input({ label, error, helper, required, leftIcon, className, ...props }: InputProps) {
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
       {label && (
@@ -16,14 +17,21 @@ export function Input({ label, error, helper, required, className, ...props }: I
           {label} {required && <span className="text-accent ml-1">*</span>}
         </label>
       )}
-      <input
-        className={cn(
-          'flex h-11 w-full rounded-xl border border-input bg-surface px-4 py-2 text-text placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
-          error && 'border-danger focus:ring-danger',
-          className
+      <div className="relative">
+        {leftIcon && (
+          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted [&>svg]:h-4 [&>svg]:w-4">
+            {leftIcon}
+          </span>
         )}
-        {...props}
-      />
+        <input
+          className={cn(
+            'flex h-11 w-full rounded-xl border border-input bg-surface px-4 py-2 text-text placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+            leftIcon ? 'pl-10' : null,
+            error && 'border-danger focus:ring-danger',
+          )}
+          {...props}
+        />
+      </div>
       {error && <p className="text-xs text-danger">{error}</p>}
       {helper && !error && <p className="text-xs text-text-muted">{helper}</p>}
     </div>

@@ -5,11 +5,13 @@ import { Button } from '@/components/ui/button';
 import { computeLibraryStats, booksFinishedInRange, pagesReadInRange, readingHoursInRange, getYearRange } from '@/utils/date';
 import { CoverImage } from '@/components/ui/cover-image';
 import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
-import { Trophy, Star, Calendar, Award } from 'lucide-react';
+import { useAuthorNames } from '@/hooks/use-author-names';
+import { Trophy, Star, Calendar, Award, Book } from 'lucide-react';
 
 export default function YearInBooks() {
   const books = useSafeLiveQuery(() => db.books.toArray(), []) ?? [];
   const sessions = useSafeLiveQuery(() => db.readingSessions.toArray(), []) ?? [];
+  const { nameFor } = useAuthorNames();
   const [year, setYear] = useState(new Date().getFullYear());
 
   const { start, end } = getYearRange(year);
@@ -20,8 +22,8 @@ export default function YearInBooks() {
 
   const years = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i);
 
-  const topBook = finished.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))[0];
-  const longest = finished.sort((a, b) => (b.pageCount ?? 0) - (a.pageCount ?? 0))[0];
+  const topBook = [...finished].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))[0];
+  const longest = [...finished].sort((a, b) => (b.pageCount ?? 0) - (a.pageCount ?? 0))[0];
 
   return (
     <div className="container py-6">
@@ -59,11 +61,11 @@ export default function YearInBooks() {
           <h2 className="text-2xl font-serif font-bold text-text mb-6">Book of the Year</h2>
           <div className="flex gap-6">
             <div className="w-40 h-60 rounded-xl overflow-hidden bg-surface border border-input shrink-0">
-              <CoverImage coverImageId={topBook?.coverImageId ?? null} alt={topBook?.title} className="w-full h-full object-cover" />
+              <CoverImage coverImageId={topBook?.coverImageId ?? null} coverUrl={topBook?.coverUrl ?? null} title={topBook?.title} genre={topBook?.genres?.[0]} alt={topBook?.title} className="h-full w-full" />
             </div>
             <div>
               <h3 className="text-xl font-serif font-bold text-text">{topBook?.title || 'No books finished yet'}</h3>
-              <p className="text-text-secondary">{topBook?.authorIds.join(', ') || ''}</p>
+              <p className="text-text-secondary">{topBook ? nameFor(topBook.authorIds, '') : ''}</p>
               <p className="mt-3 text-text-secondary leading-relaxed">{topBook?.description || 'Finish some books to unlock your book of the year.'}</p>
               <div className="mt-4 flex items-center gap-1">
                 <Trophy className="w-5 h-5 text-gold" />

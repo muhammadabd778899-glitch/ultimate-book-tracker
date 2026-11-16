@@ -82,7 +82,7 @@ export default function Journal() {
                   return (
                     <div key={r.id} className="border border-input rounded-xl p-4 bg-surface flex gap-3">
                       <div className="w-10 h-10 rounded-lg overflow-hidden bg-surface flex-shrink-0">
-                        <CoverImage coverImageId={b?.coverImageId ?? null} alt={b?.title} className="w-full h-full object-cover" />
+                        <CoverImage coverImageId={b?.coverImageId ?? null} coverUrl={b?.coverUrl ?? null} title={b?.title} genre={b?.genres?.[0]} alt={b?.title} className="h-full w-full" />
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-semibold text-text">{b ? b.title : 'Unknown Book'}</p>

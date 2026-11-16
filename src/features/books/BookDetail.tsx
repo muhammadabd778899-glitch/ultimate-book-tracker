@@ -22,6 +22,7 @@ import {
   History,
   ChevronLeft,
   Heart,
+  BookX,
 } from 'lucide-react';
 
 export default function BookDetail() {
@@ -29,7 +30,7 @@ export default function BookDetail() {
   const navigate = useNavigate();
   const t = useToast();
 
-  const book = useSafeLiveQuery(() => db.books.get(id ?? ''), [id ?? '']) as any;
+  const book = useSafeLiveQuery(() => db.books.get(id ?? '').then((b) => b ?? null), [id ?? '']) as any;
   const reviews = useSafeLiveQuery(() => db.reviews.where('bookId').equals(id ?? '').toArray(), [id ?? '']) ?? [];
   const quotes = useSafeLiveQuery(() => db.quotes.where('bookId').equals(id ?? '').toArray(), [id ?? '']) ?? [];
   const sessions = useSafeLiveQuery(() => db.readingSessions.where('bookId').equals(id ?? '').sortBy('date'), [id ?? '']) ?? [];
@@ -43,7 +44,27 @@ export default function BookDetail() {
   const [reviewRating, setReviewRating] = useState(0);
   const [spoiler, setSpoiler] = useState(false);
 
-  if (!book) return <div className="container py-20 text-center">Loading book…</div>;
+  if (book === undefined) {
+    return (
+      <div className="container flex items-center justify-center py-32">
+        <div className="flex flex-col items-center gap-3 text-text-muted">
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-border border-t-accent" />
+          <p className="text-sm">Loading book…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (book === null) {
+    return (
+      <div className="container flex flex-col items-center justify-center py-28 text-center">
+        <BookX className="mb-4 h-14 w-14 text-text-muted opacity-40" />
+        <h2 className="font-serif text-2xl font-bold text-text">Book not found</h2>
+        <p className="mb-6 mt-1 text-text-secondary">This book may have been deleted from your library.</p>
+        <Button onClick={() => navigate('/library')}>Back to Library</Button>
+      </div>
+    );
+  }
 
   const authorNames = book.authorIds.map((aid: string) => authors.find((a: any) => a.id === aid)?.name).filter(Boolean).join(', ');
   const pct = computePercentage(book.currentPage, book.pageCount);
@@ -58,11 +79,16 @@ export default function BookDetail() {
 
       {/* Header */}
       <div className="mb-8 relative rounded-3xl border border-input bg-surface shadow-hero overflow-hidden">
-        <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_bottom,#101014_0%,#101014_100%)]" />
-        <div className="grid lg:grid-cols-12 gap-6 p-6 md:p-8">
-          <div className="lg:col-span-4 order-2 lg:order-1 relative">
+        {book.coverUrl && (
+          <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+            <img src={book.coverUrl} alt="" className="h-full w-full scale-110 object-cover opacity-25 blur-3xl" />
+            <div className="absolute inset-0 bg-gradient-to-r from-surface/95 via-surface/80 to-surface/40" />
+          </div>
+        )}
+        <div className="relative grid lg:grid-cols-12 gap-6 p-6 md:p-8">
+          <div className="lg:col-span-4 relative mx-auto w-full max-w-[220px] sm:max-w-[260px] lg:max-w-none">
             <div className="aspect-[2/3] rounded-2xl overflow-hidden bg-surface border border-input shadow-cover">
-              <CoverImage coverImageId={book.coverImageId} alt={book.title} className="w-full h-full object-cover" />
+              <CoverImage coverImageId={book.coverImageId} coverUrl={book.coverUrl} title={book.title} genre={book.genres?.[0]} alt={book.title} className="h-full w-full" />
               {book.isFavorite && (
                 <div className="absolute top-4 right-4 z-10">
                   <Heart className="w-6 h-6 fill-gold text-gold drop-shadow-lg" />
@@ -75,8 +101,8 @@ export default function BookDetail() {
               )}
             </div>
           </div>
-          <div className="lg:col-span-8 order-1 lg:order-2 flex flex-col justify-center">
-            <div className="flex flex-wrap gap-2 mb-3">
+          <div className="lg:col-span-8 flex flex-col justify-center text-center lg:text-left">
+            <div className="flex flex-wrap justify-center lg:justify-start gap-2 mb-3">
               <span className={`px-3 py-1 rounded-full border text-xs font-medium ${statusColor(book.readingStatus)} border-accent/20 bg-accent/5`}>
                 {statusLabel(book.readingStatus)}
               </span>
@@ -99,7 +125,7 @@ export default function BookDetail() {
             <h1 className="text-4xl md:text-5xl font-serif font-bold text-text mb-2 leading-tight">{book.title}</h1>
             {book.subtitle && <p className="text-xl font-serif text-text-secondary mb-4 italic">{book.subtitle}</p>}
             <p className="text-lg text-text-secondary mb-6">By {authorNames || 'Unknown Author'}</p>
-            <div className="flex items-center gap-6 mb-6">
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-6 gap-y-2 mb-6">
               <div className="flex items-center gap-1">
                 <Star className="w-5 h-5 fill-gold text-gold" />
                 <span className="font-serif text-lg">{book.rating ?? '—'}</span>
@@ -121,7 +147,7 @@ export default function BookDetail() {
                 </div>
               )}
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-3 justify-center lg:justify-start">
               <Button onClick={() => navigate(`/books/${id}/edit`)} className="flex-1">
                 <Edit2 className="w-4 h-4 mr-2" /> Edit Details
               </Button>
@@ -146,7 +172,7 @@ export default function BookDetail() {
         ].map(({ key, label, icon: Icon }) => (
           <button
             key={key}
-            onClick={() => setTab(key)}
+            onClick={() => setTab(key as typeof tab)}
             className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all ${
               tab === key
                 ? 'border-accent text-accent'

@@ -131,7 +131,7 @@ export const CSV_DEFAULT_COLUMNS = [
   'title', 'author', 'isbn', 'genre', 'status', 'rating', 'pageCount', 'format', 'description', 'dateStarted', 'dateFinished',
 ];
 
-export function csvEscape(value: string | undefined | null): string {
+export function csvEscape(value: string | number | undefined | null): string {
   if (value == null) return '';
   const s = String(value);
   if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;

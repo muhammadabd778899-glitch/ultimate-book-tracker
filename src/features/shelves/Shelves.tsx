@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
-import { Book, Plus, LayoutGrid, LayoutList, Trash2, ArrowRight } from 'lucide-react';
+import { Book, Plus, LayoutGrid, LayoutList, Trash2, ArrowRight, Heart, Star, Moon, Sun, Flame, Zap, Leaf, Award, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
+import { CoverImage } from '@/components/ui/cover-image';
 
 export default function Shelves() {
   const navigate = useNavigate();
@@ -70,7 +71,7 @@ export default function Shelves() {
           shelves.map((s) => {
             const shelfBooks = s.bookIds.map((id) => books.find((b) => b.id === id)).filter(Boolean);
             return (
-              <ShelfCard key={s.id} shelf={s} bookCount={shelfBooks.length} onDelete={handleDelete} onClick={() => navigate(`/shelves/${s.id}`)} />
+              <ShelfCard key={s.id} shelf={s} shelfBooks={shelfBooks} onDelete={handleDelete} onClick={() => navigate(`/shelves/${s.id}`)} />
             );
           })
         )}
@@ -81,14 +82,29 @@ export default function Shelves() {
   );
 }
 
-function ShelfCard({ shelf, bookCount, onDelete, onClick }: { shelf: any; bookCount: number; onDelete: (id: string) => void; onClick: () => void }) {
+function ShelfCard({ shelf, shelfBooks, onDelete, onClick }: { shelf: any; shelfBooks: any[]; onDelete: (id: string) => void; onClick: () => void }) {
+  const bookCount = shelfBooks.length;
+  const preview = shelfBooks.slice(0, 3);
   return (
-    <Card className="p-5 group relative overflow-hidden cursor-pointer" onClick={onClick}>
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-      <div className="aspect-[4/3] rounded-xl overflow-hidden bg-surface border border-input mb-4">
-        <div className="w-full h-full flex items-center justify-center text-text-muted">
-          <Book className="w-12 h-12 opacity-40" />
-        </div>
+    <Card className="p-5 group relative overflow-hidden cursor-pointer transition-transform hover:-translate-y-0.5" onClick={onClick}>
+      <div className="relative mb-4 aspect-[4/3] overflow-hidden rounded-xl border border-input bg-elevated/50">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-40"
+          style={{ background: `radial-gradient(120% 100% at 50% 0%, ${shelf.color || '#E65A45'} 0%, transparent 70%)` }}
+        />
+        {preview.length > 0 ? (
+          <div className="absolute inset-0 flex items-end justify-center gap-2 px-4 pb-4">
+            {preview.map((b) => (
+              <div key={b.id} className="w-[30%] shadow-cover">
+                <CoverImage coverImageId={b.coverImageId} coverUrl={b.coverUrl} title={b.title} genre={b.genres?.[0]} alt={b.title} radius="md" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-text-muted">
+            <Book className="w-12 h-12 opacity-40" />
+          </div>
+        )}
       </div>
       <div style={{ borderLeft: `4px solid ${shelf.color || '#E65A45'}` }} className="pl-3">
         <h4 className="text-lg font-serif font-semibold text-text">{shelf.name}</h4>

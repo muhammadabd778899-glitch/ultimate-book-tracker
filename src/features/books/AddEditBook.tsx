@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { db, newId, nowISO } from '@/db';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,8 @@ import { ProgressBar } from '@/components/ui/progress-bar';
 import { useToast } from '@/components/ui/toast';
 import { generateFallbackCover } from '@/utils/cover';
 import { imageFileToDataUrl } from '@/utils/cover';
-import { X, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { enrichBookDetails, normalizeIsbn } from '@/lib/covers';
+import { X, Image as ImageIcon, Trash2, Sparkles, BadgeCheck } from 'lucide-react';
 import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
 
 const GENRES = [
@@ -42,6 +43,7 @@ export default function AddEditBook() {
     author: '',
     additionalAuthors: '',
     isbn: '',
+    coverUrl: '',
     description: '',
     publisher: '',
     publicationDate: '',
@@ -71,6 +73,8 @@ export default function AddEditBook() {
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [coverRemoved, setCoverRemoved] = useState(false);
+  const [coverBroken, setCoverBroken] = useState(false);
+  const [lookupBusy, setLookupBusy] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -82,6 +86,7 @@ export default function AddEditBook() {
         author: (authors.find((a) => a.id === book.authorIds[0])?.name || ''),
         additionalAuthors: book.authorIds.slice(1).map((aid: string) => authors.find((a) => a.id === aid)?.name).join(', '),
         isbn: book.isbn || '',
+        coverUrl: book.coverUrl || '',
         description: book.description || '',
         publisher: book.publisher || '',
         publicationDate: book.publicationDate || '',
@@ -116,17 +121,20 @@ export default function AddEditBook() {
     }
   }, [book, authors]);
 
-  // Compute cover display
-  const [computedCover, setComputedCover] = useState<string | null>(null);
+  // Compute cover display: upload > official cover > generated artwork
+  const generatedCover = useMemo(
+    () =>
+      form.title
+        ? generateFallbackCover({ title: form.title, author: form.author, genre: form.genre, width: 300, height: 450 })
+        : null,
+    [form.title, form.author, form.genre]
+  );
+  const remoteCover = !coverRemoved && !coverPreview ? form.coverUrl || null : null;
+  const computedCover = coverPreview ?? remoteCover ?? generatedCover;
+
   useEffect(() => {
-    if (coverPreview) {
-      setComputedCover(coverPreview);
-    } else if (form.title) {
-      setComputedCover(generateFallbackCover({ title: form.title, author: form.author, genre: form.genre, width: 300, height: 450 }));
-    } else {
-      setComputedCover(null);
-    }
-  }, [coverPreview, form.title, form.author, form.genre]);
+    setCoverBroken(false);
+  }, [form.coverUrl, coverPreview]);
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -149,7 +157,45 @@ export default function AddEditBook() {
     setCoverFile(null);
     setCoverPreview(null);
     setCoverRemoved(true);
-    setComputedCover(generateFallbackCover({ title: form.title, author: form.author, genre: form.genre, width: 300, height: 450 }));
+    setForm((f: any) => ({ ...f, coverUrl: '' }));
+  };
+
+  const handleLookup = async () => {
+    const query = form.isbn.trim() || [form.title, form.author].filter(Boolean).join(' ').trim();
+    if (!query) {
+      showError('Enter an ISBN, or a title and author, then try again.');
+      return;
+    }
+    setLookupBusy(true);
+    try {
+      const { details, coverUrl } = await enrichBookDetails({
+        isbn: form.isbn,
+        title: form.title,
+        author: form.author,
+      });
+      if (!details && !coverUrl) {
+        showError('No match found. Check the ISBN or the spelling of the title.');
+        return;
+      }
+      setForm((f: any) => ({
+        ...f,
+        title: f.title || details?.title || f.title,
+        subtitle: f.subtitle || details?.subtitle || f.subtitle,
+        author: f.author || details?.authors?.[0] || f.author,
+        isbn: normalizeIsbn(f.isbn) || details?.isbn || f.isbn,
+        publisher: f.publisher || details?.publisher || f.publisher,
+        publicationDate: f.publicationDate || pdfDate(details?.publishDate) || f.publicationDate,
+        pageCount: f.pageCount || (details?.pageCount ? String(details.pageCount) : f.pageCount),
+        coverUrl: coverUrl || f.coverUrl,
+      }));
+      if (coverUrl) success('Official cover found');
+      else success('Details found — no cover available for this edition');
+    } catch (err) {
+      console.error(err);
+      showError('Lookup failed. Check your connection and try again.');
+    } finally {
+      setLookupBusy(false);
+    }
   };
 
   const validate = (): boolean => {
@@ -240,6 +286,7 @@ export default function AddEditBook() {
         ownershipStatus: form.ownershipStatus,
         readingStatus: form.readingStatus,
         coverImageId,
+        coverUrl: coverFile ? null : form.coverUrl || null,
         seriesId: null,
         seriesPosition: form.seriesPosition ? Number(form.seriesPosition) : null,
         dateAdded: form.dateAdded || now,
@@ -282,8 +329,8 @@ export default function AddEditBook() {
   return (
     <div className="container py-6 max-w-4xl">
       <div className="flex items-center gap-2 mb-6">
-        <Button variant="outline" size="sm" onClick={() => navigate(-1)} className="hidden md:block">
-          <X className="w-4 h-4 mr-2" /> Back
+        <Button variant="outline" size="sm" onClick={() => navigate(-1)} className="inline-flex" aria-label="Go back">
+          <X className="w-4 h-4 md:mr-2" /> <span className="hidden md:inline">Back</span>
         </Button>
         <h1 className="text-2xl font-serif font-bold text-text">{mode === 'add' ? 'Add a New Book' : 'Edit Book'}</h1>
       </div>
@@ -291,7 +338,7 @@ export default function AddEditBook() {
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left: form fields */}
-          <div className="space-y-6">
+          <div className="space-y-6 lg:col-span-2">
             <Card className="p-0">
               <div className="p-6 border-b border-input">
                 <h3 className="text-lg font-serif font-semibold text-text">Details</h3>
@@ -299,43 +346,58 @@ export default function AddEditBook() {
               <div className="p-6 space-y-4">
                 <Input label="Title *" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} error={errors.title} />
                 <Input label="Subtitle" value={form.subtitle} onChange={(e) => setForm({ ...form, subtitle: e.target.value })} />
-                <Input label="Author *" required value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} error={errors.author} placeholder="e.g. Elara Voss" />
+                <Input label="Author *" required value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} error={errors.author} placeholder="e.g. Andy Weir" />
                 <Input label="Additional Authors" value={form.additionalAuthors} onChange={(e) => setForm({ ...form, additionalAuthors: e.target.value })} placeholder="comma-separated" />
                 <Input label="ISBN" value={form.isbn} onChange={(e) => setForm({ ...form, isbn: e.target.value })} placeholder="978-0-000-00000-0" />
                 <Textarea label="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={4} />
                 <Input label="Publisher" value={form.publisher} onChange={(e) => setForm({ ...form, publisher: e.target.value })} />
                 <div className="grid grid-cols-2 gap-4">
-                  <Input label="Publication Date" type="date" value={form.publicationDate} onChange={(e) => setForm({ ...form, publicationDate: e.target.value })} />
-                  <Input label="Page Count" type="number" value={form.pageCount} onChange={(e) => setForm({ ...form, pageCount: e.target.value })} error={errors.pageCount} />
+                  <div className="min-w-0">
+                    <Input label="Publication Date" type="date" value={form.publicationDate} onChange={(e) => setForm({ ...form, publicationDate: e.target.value })} />
+                  </div>
+                  <div className="min-w-0">
+                    <Input label="Page Count" type="number" value={form.pageCount} onChange={(e) => setForm({ ...form, pageCount: e.target.value })} error={errors.pageCount} />
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <Input label="Language" value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })} />
-                  <select
-                    value={form.genre}
-                    onChange={(e) => setForm({ ...form, genre: e.target.value })}
-                    className="w-full h-11 rounded-xl border border-input bg-surface px-4 py-2 text-text focus:outline-none focus:ring-1 focus:ring-accent"
-                  >
-                    <option value="">Select a genre</option>
-                    {GENRES.map((g) => (
-                      <option key={g} value={g}>{g}</option>
-                    ))}
-                  </select>
+                  <div className="min-w-0">
+                    <Input label="Language" value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })} />
+                  </div>
+                  <div className="min-w-0 space-y-2">
+                    <label className="text-sm font-medium text-text-secondary">Genre</label>
+                    <select
+                      value={form.genre}
+                      onChange={(e) => setForm({ ...form, genre: e.target.value })}
+                      className="w-full h-11 rounded-xl border border-input bg-surface px-4 py-2 text-text focus:outline-none focus:ring-1 focus:ring-accent"
+                    >
+                      <option value="">Select a genre</option>
+                      {GENRES.map((g) => (
+                        <option key={g} value={g}>{g}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <select
-                    value={form.format}
-                    onChange={(e) => setForm({ ...form, format: e.target.value })}
-                    className="w-full h-11 rounded-xl border border-input bg-surface px-4 py-2 text-text focus:outline-none focus:ring-1 focus:ring-accent"
-                  >
-                    {FORMATS.map((f) => <option key={f} value={f}>{f}</option>)}
-                  </select>
-                  <select
-                    value={form.ownershipStatus}
-                    onChange={(e) => setForm({ ...form, ownershipStatus: e.target.value })}
-                    className="w-full h-11 rounded-xl border border-input bg-surface px-4 py-2 text-text focus:outline-none focus:ring-1 focus:ring-accent"
-                  >
-                    {OWNERSHIP.map((o) => <option key={o} value={o}>{o}</option>)}
-                  </select>
+                  <div className="min-w-0 space-y-2">
+                    <label className="text-sm font-medium text-text-secondary">Format</label>
+                    <select
+                      value={form.format}
+                      onChange={(e) => setForm({ ...form, format: e.target.value })}
+                      className="w-full h-11 rounded-xl border border-input bg-surface px-4 py-2 text-text focus:outline-none focus:ring-1 focus:ring-accent"
+                    >
+                      {FORMATS.map((f) => <option key={f} value={f}>{f}</option>)}
+                    </select>
+                  </div>
+                  <div className="min-w-0 space-y-2">
+                    <label className="text-sm font-medium text-text-secondary">Ownership</label>
+                    <select
+                      value={form.ownershipStatus}
+                      onChange={(e) => setForm({ ...form, ownershipStatus: e.target.value })}
+                      className="w-full h-11 rounded-xl border border-input bg-surface px-4 py-2 text-text focus:outline-none focus:ring-1 focus:ring-accent"
+                    >
+                      {OWNERSHIP.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </div>
                 </div>
               </div>
             </Card>
@@ -380,7 +442,7 @@ export default function AddEditBook() {
           </div>
 
           {/* Right: cover + metadata */}
-          <div className="lg:col-span-1 space-y-6">
+          <div className="order-first lg:order-none lg:col-span-1 space-y-6">
             <Card className="p-0">
               <div className="p-6 border-b border-input">
                 <h3 className="text-lg font-serif font-semibold text-text">Cover Image</h3>
@@ -388,24 +450,52 @@ export default function AddEditBook() {
               <div className="p-6 space-y-4">
                 <div className="aspect-[2/3] rounded-xl overflow-hidden bg-surface border border-input flex items-center justify-center mb-2 relative">
                   {computedCover ? (
-                    <img src={computedCover} alt={form.title} className="w-full h-full object-cover" />
+                    <img
+                      src={coverBroken && generatedCover ? generatedCover : computedCover}
+                      alt={form.title || 'Cover preview'}
+                      className="w-full h-full object-cover"
+                      onError={() => setCoverBroken(true)}
+                    />
                   ) : (
-                    <div className="flex flex-col items-center justify-center text-text-muted">
+                    <div className="flex flex-col items-center justify-center px-4 text-center text-text-muted">
                       <ImageIcon className="w-10 h-10 opacity-50 mb-2" />
-                      <p className="text-xs">No cover</p>
+                      <p className="text-xs">Add a title, or look up an ISBN to fetch the official cover.</p>
                     </div>
                   )}
-                  <label className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/70 text-text px-3 py-1.5 rounded-full text-xs backdrop-blur">
+                  {remoteCover && !coverBroken && (
+                    <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur">
+                      <BadgeCheck className="h-3 w-3 text-success" /> Official cover
+                    </span>
+                  )}
+                  <label className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/70 text-text px-3 py-1.5 rounded-full text-xs backdrop-blur whitespace-nowrap cursor-pointer">
                     <ImageIcon className="w-3 h-3" /> Upload cover
                     <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleImageChange} />
                   </label>
-                  {coverPreview && !coverRemoved && (
-                    <button onClick={handleRemoveCover} className="absolute top-2 right-2 p-1.5 text-danger hover:bg-danger/10 rounded-lg">
+                  {(coverPreview || remoteCover) && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveCover}
+                      title="Remove cover"
+                      className="absolute top-2 right-2 p-1.5 text-danger hover:bg-danger/10 rounded-lg bg-black/40 backdrop-blur"
+                    >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   )}
                 </div>
-                <p className="text-xs text-text-muted">JPEG, PNG, or WebP. Max 5 MB.</p>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleLookup}
+                  disabled={lookupBusy}
+                  className="w-full flex items-center justify-center gap-2"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  {lookupBusy ? 'Searching Open Library…' : 'Find cover & details'}
+                </Button>
+                <p className="text-[11px] leading-relaxed text-text-muted">
+                  Uses the ISBN (best) or title and author to fetch the official cover and missing details from Open Library. You can always upload your own image instead.
+                </p>
               </div>
             </Card>
 
@@ -416,13 +506,13 @@ export default function AddEditBook() {
               <div className="p-6 space-y-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-text-secondary">Rating (0–5)</label>
-                  <div className="flex gap-1">
+                  <div className="flex flex-wrap gap-1.5">
                     {[0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].map((r) => (
                       <button
                         key={r}
                         onClick={() => setForm({ ...form, rating: String(r) })}
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                          Number(form.rating) === r ? 'bg-accent text-text' : 'bg-surface text-text-secondary hover:bg-elevated'
+                        className={`h-8 min-w-[2.25rem] rounded-full px-1.5 text-xs font-bold transition-all ${
+                          Number(form.rating) === r ? 'bg-accent text-white' : 'bg-surface text-text-secondary hover:bg-elevated'
                         }`}
                       >
                         {r}
@@ -454,4 +544,12 @@ export default function AddEditBook() {
       </form>
     </div>
   );
+}
+
+function pdfDate(value?: string | null): string | null {
+  if (!value) return null;
+  if (/^\d{4}$/.test(value)) return `${value}-01-01`;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString().slice(0, 10);
 }

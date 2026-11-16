@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { CoverImage } from '@/components/ui/cover-image';
-import { Book, DollarSign, Star, Trash2, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Book, DollarSign, Star, Trash2, CheckCircle2, ArrowRight, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
+import { findCover } from '@/lib/covers';
 
 const PRIORITIES = ['high', 'medium', 'low'] as const;
 const STATUSES = ['wishlisted', 'purchased', 'cancelled'] as const;
@@ -37,12 +38,14 @@ export default function Wishlist() {
 
   const handleAdd = async () => {
     if (!item.title.trim()) return toast.error('Title is required.');
+    const newItemId = newId();
     await db.wishlist.add({
-      id: newId(),
+      id: newItemId,
       bookId: null,
       title: item.title.trim(),
       author: item.author.trim() || null,
       coverImageId: null,
+      coverUrl: null,
       format: item.format,
       estimatedPrice: item.estimatedPrice ? Number(item.estimatedPrice) : null,
       currency: item.currency,
@@ -53,6 +56,10 @@ export default function Wishlist() {
       createdAt: nowISO(),
       updatedAt: nowISO(),
     } as any);
+    // Fetch the official cover in the background; the list updates live.
+    findCover({ title: item.title.trim(), author: item.author.trim() }).then((url) => {
+      if (url) db.wishlist.update(newItemId, { coverUrl: url, updatedAt: nowISO() } as any);
+    });
     setItem({ title: '', author: '', format: 'Paperback', estimatedPrice: '', currency: 'USD', priority: 'medium', plannedPurchaseDate: '', notes: '', status: 'wishlisted' });
     setOpen(false);
     toast.success('Added to wishlist');
@@ -87,6 +94,7 @@ export default function Wishlist() {
       ownershipStatus: 'owned',
       readingStatus: 'want-to-read',
       coverImageId: w.coverImageId || null,
+      coverUrl: w.coverUrl || null,
       seriesId: null,
       seriesPosition: null,
       dateAdded: new Date().toISOString().slice(0, 10),
@@ -172,7 +180,7 @@ function WishlistCard({ item, onStatus, onPurchaseAndAdd, onRemove }: { item: an
         <Book className="w-10 h-10" />
       </div>
       <div className="aspect-[2/3] rounded-xl overflow-hidden bg-surface border border-input mb-4">
-        <CoverImage coverImageId={item.coverImageId} alt={item.title} className="w-full h-full object-cover" />
+        <CoverImage coverImageId={item.coverImageId} coverUrl={item.coverUrl} title={item.title} author={item.author} alt={item.title} className="h-full w-full" />
       </div>
       <h4 className="text-lg font-serif font-semibold text-text mb-1">{item.title}</h4>
       <p className="text-xs text-text-secondary mb-3">{item.author || 'Unknown Author'}</p>

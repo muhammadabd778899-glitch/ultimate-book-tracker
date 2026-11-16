@@ -25,6 +25,7 @@ export interface Book {
   ownershipStatus?: string | null; // owned, borrowed, library, gifted
   readingStatus?: string | null; // want-to-read, currently-reading, finished, on-hold, did-not-finish
   coverImageId?: string | null;
+  coverUrl?: string | null; // remote official cover (Open Library)
   seriesId?: string | null;
   seriesPosition?: number | null;
   dateAdded?: string | null; // ISO date
@@ -157,6 +158,7 @@ export interface WishlistItem {
   title: string;
   author?: string | null;
   coverImageId?: string | null;
+  coverUrl?: string | null;
   format?: string | null;
   estimatedPrice?: number | null;
   currency?: string | null;

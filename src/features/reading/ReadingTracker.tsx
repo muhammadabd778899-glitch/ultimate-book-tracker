@@ -5,9 +5,12 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/toast';
 import { statusLabel, statusColor, formatDate } from '@/utils/date';
-import { Play, Book, Clock, Flag, RefreshCw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Play, Book, Clock, Flag, RefreshCw, Star } from 'lucide-react';
+import { ProgressBar } from '@/components/ui/progress-bar';
 import { computePercentage } from '@/utils/date';
 import { useSafeLiveQuery } from '@/hooks/use-safe-live-query';
+import { useAuthorNames } from '@/hooks/use-author-names';
 
 const STATUSES = [
   { id: 'want-to-read', label: 'Want to Read', icon: 'clock' },
@@ -18,14 +21,19 @@ const STATUSES = [
 ] as const;
 
 export default function ReadingTracker() {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [view, setView] = useState<'active' | 'all'>('active');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const books = useSafeLiveQuery(() => db.books.toArray(), []) ?? [];
   const sessions = useSafeLiveQuery(() => db.readingSessions.toArray(), []) ?? [];
+  const { nameFor } = useAuthorNames();
 
   const activeBooks = books.filter((b) => b.readingStatus === 'currently-reading');
-  const filteredBooks = view === 'active' ? activeBooks : books;
+  const filteredBooks = (view === 'active' ? activeBooks : books).filter(
+    (b) => statusFilter === 'all' || b.readingStatus === statusFilter
+  );
 
   const handleStatusChange = async (bookId: string, newStatus: string) => {
     const b = await db.books.get(bookId);
@@ -60,24 +68,43 @@ export default function ReadingTracker() {
         </Button>
       </div>
 
-      <div className="flex gap-4 mb-6">
+      <div className="flex flex-wrap gap-2 mb-6">
+        <button
+          onClick={() => {
+            setStatusFilter('all');
+            setView('all');
+          }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border ${
+            statusFilter === 'all'
+              ? 'bg-accent text-white border-accent'
+              : 'bg-surface text-text-secondary border-input hover:bg-elevated hover:text-text'
+          }`}
+        >
+          All Books
+          <span className={`text-xs px-2 py-0.5 rounded-full ${statusFilter === 'all' ? 'bg-black/20' : 'bg-elevated'}`}>
+            {books.length}
+          </span>
+        </button>
         {STATUSES.map((s) => {
           const Icon = s.icon === 'play' ? Play : s.icon === 'book' ? Book : s.icon === 'clock' ? Clock : s.icon === 'pause' ? Flag : RefreshCw;
           const count = books.filter((b) => b.readingStatus === s.id).length;
-          const active = view === 'active' ? s.id === 'currently-reading' : false;
+          const active = statusFilter === s.id;
           return (
             <button
               key={s.id}
-              onClick={() => {}}
-              className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all border ${
-                s.id === 'currently-reading' || active
-                  ? 'bg-accent text-text border-accent'
-                  : 'bg-surface text-text-secondary border-input hover:bg-elevated'
+              onClick={() => {
+                setStatusFilter(s.id);
+                setView('all');
+              }}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border ${
+                active
+                  ? 'bg-accent text-white border-accent'
+                  : 'bg-surface text-text-secondary border-input hover:bg-elevated hover:text-text'
               }`}
             >
               <Icon className="w-4 h-4" />
               <span>{s.label}</span>
-              <span className="text-xs bg-black/20 px-2 py-0.5 rounded">{count}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${active ? 'bg-black/20' : 'bg-elevated'}`}>{count}</span>
             </button>
           );
         })}
@@ -93,7 +120,7 @@ export default function ReadingTracker() {
           </div>
         ) : (
           filteredBooks.map((b) => (
-            <BookTrackerCard key={b.id} book={b} onStatusChange={handleStatusChange} onStart={handleStartReading} onFinish={handleFinish} sessions={sessions.filter((s) => s.bookId === b.id)} />
+            <BookTrackerCard key={b.id} book={b} author={nameFor(b.authorIds)} onStatusChange={handleStatusChange} onStart={handleStartReading} onFinish={handleFinish} sessions={sessions.filter((s) => s.bookId === b.id)} />
           ))
         )}
       </div>
@@ -101,7 +128,7 @@ export default function ReadingTracker() {
   );
 }
 
-function BookTrackerCard({ book, onStatusChange, onStart, onFinish, sessions }: { book: any; onStatusChange: (id: string, status: string) => void; onStart: (id: string) => void; onFinish: (id: string) => void; sessions: any[] }) {
+function BookTrackerCard({ book, author, onStatusChange, onStart, onFinish, sessions }: { book: any; author: string; onStatusChange: (id: string, status: string) => void; onStart: (id: string) => void; onFinish: (id: string) => void; sessions: any[] }) {
   const pct = computePercentage(book.currentPage, book.pageCount);
   const totalSessions = sessions.length;
   const totalMinutes = sessions.reduce((s, x) => s + (x.durationMinutes ?? 0), 0);
@@ -117,7 +144,7 @@ function BookTrackerCard({ book, onStatusChange, onStart, onFinish, sessions }: 
           <span className="text-xs text-text-muted">{book.rating ?? '—'}</span>
         </div>
       </div>
-      <p className="text-xs text-text-secondary mb-4 line-clamp-2">{book.authorIds.join(', ') || 'Unknown Author'}</p>
+      <p className="text-xs text-text-secondary mb-4 line-clamp-2">{author}</p>
 
       <div className="space-y-3 mb-4">
         <label className="text-xs font-medium text-text-secondary">Status</label>

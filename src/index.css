@@ -4,6 +4,26 @@
 
 @layer base {
   :root {
+    --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+      "Helvetica Neue", Arial, sans-serif;
+    --font-serif: "Iowan Old Style", "Palatino Linotype", "Book Antiqua",
+      Palatino, Georgia, "Times New Roman", serif;
+
+    /* RGB channel tokens so Tailwind opacity modifiers keep working */
+    --c-bg: 16 16 20;
+    --c-surface: 24 24 31;
+    --c-card: 34 34 43;
+    --c-elevated: 41 41 52;
+    --c-border: 48 48 58;
+    --c-accent: 230 90 69;
+    --c-gold: 214 168 95;
+    --c-text: 247 245 242;
+    --c-text-secondary: 170 167 176;
+    --c-text-muted: 119 116 126;
+    --c-success: 88 184 138;
+    --c-warning: 229 168 75;
+    --c-danger: 224 92 97;
+
     --color-bg: #101014;
     --color-surface: #18181f;
     --color-card: #22222b;
@@ -18,6 +38,38 @@
     --color-success: #58b88a;
     --color-warning: #e5a84b;
     --color-danger: #e05c61;
+
+    color-scheme: dark;
+  }
+
+  html.light {
+    --c-bg: 250 249 246;
+    --c-surface: 255 255 255;
+    --c-card: 255 255 255;
+    --c-elevated: 243 241 236;
+    --c-border: 229 225 218;
+    --c-gold: 169 124 46;
+    --c-text: 28 26 30;
+    --c-text-secondary: 89 86 94;
+    --c-text-muted: 128 124 133;
+    --c-success: 32 130 88;
+    --c-warning: 176 114 20;
+    --c-danger: 190 62 67;
+
+    --color-bg: #faf9f6;
+    --color-surface: #ffffff;
+    --color-card: #ffffff;
+    --color-elevated: #f3f1ec;
+    --color-border: #e5e1da;
+    --color-gold: #a97c2e;
+    --color-text: #1c1a1e;
+    --color-text-secondary: #59565e;
+    --color-text-muted: #807c85;
+    --color-success: #208258;
+    --color-warning: #b07214;
+    --color-danger: #be3e43;
+
+    color-scheme: light;
   }
 
   *,
@@ -32,10 +84,11 @@
 
   body {
     margin: 0;
-    background-color: var(--color-bg);
-    color: var(--color-text);
+    background-color: rgb(var(--c-bg));
+    color: rgb(var(--c-text));
     font-family: var(--font-sans);
     overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
   }
 
   #root {
@@ -45,8 +98,8 @@
   }
 
   ::selection {
-    background: var(--color-accent);
-    color: var(--color-text);
+    background: rgb(var(--c-accent));
+    color: #fff;
   }
 
   ::-webkit-scrollbar {
@@ -54,14 +107,14 @@
     height: 8px;
   }
   ::-webkit-scrollbar-track {
-    background: #101014;
+    background: rgb(var(--c-bg));
   }
   ::-webkit-scrollbar-thumb {
-    background: #30303a;
+    background: rgb(var(--c-border));
     border-radius: 4px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #4a4a55;
+    background: rgb(var(--c-text-muted));
   }
 
   h1, h2, h3, h4, h5, h6 {
